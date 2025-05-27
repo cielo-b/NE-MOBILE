@@ -129,4 +129,4 @@ MIT License - see LICENSE file for details.
 
 ---
 
-**Built with ❤️ using React Native and Expo** 
+**Built with ❤️ by ME (cielo-b)** 

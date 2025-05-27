@@ -11,11 +11,13 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { AnimatedCard } from '../components/ui/AnimatedCard';
 import { useAuth } from '@/contexts/AuthContext';
+import { EXPENSE_CATEGORIES } from '../types';
 
 export default function BudgetSettingsScreen() {
     const { budgetSettings, setBudgetSettings } = useBudget();
     const [monthlyLimit, setMonthlyLimit] = useState(budgetSettings.monthlyLimit.toString());
     const [notificationThreshold, setNotificationThreshold] = useState(budgetSettings.notificationThreshold.toString());
+    const [categoryLimits, setCategoryLimits] = useState(budgetSettings.categoryLimits || {});
     const [isLoading, setIsLoading] = useState(false);
     const { isAuthenticated } = useAuth();
 
@@ -66,11 +68,21 @@ export default function BudgetSettingsScreen() {
             return;
         }
 
+        // Validate category limits
+        const validatedCategoryLimits: { [key: string]: number } = {};
+        for (const [category, limit] of Object.entries(categoryLimits)) {
+            const value = parseFloat(limit.toString());
+            if (!isNaN(value) && value >= 0) {
+                validatedCategoryLimits[category] = value;
+            }
+        }
+
         setIsLoading(true);
         try {
             await setBudgetSettings({
                 monthlyLimit: limitValue,
                 notificationThreshold: thresholdValue,
+                categoryLimits: validatedCategoryLimits,
             });
 
             Toast.show({
@@ -88,6 +100,16 @@ export default function BudgetSettingsScreen() {
             });
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleCategoryLimitChange = (category: string, value: string) => {
+        const numericValue = value === '' ? 0 : parseFloat(value);
+        if (!isNaN(numericValue)) {
+            setCategoryLimits(prev => ({
+                ...prev,
+                [category]: numericValue,
+            }));
         }
     };
 
@@ -159,7 +181,7 @@ export default function BudgetSettingsScreen() {
                 <ScrollView className="flex-1">
                     <View className="p-6">
                         <AnimatedCard
-                            className=" mb-6"
+                            className="mb-6"
                             animationType="slideUp"
                             delay={200}
                         >
@@ -191,6 +213,32 @@ export default function BudgetSettingsScreen() {
                                 />
                             </View>
                         </AnimatedCard>
+
+                        <AnimatedCard
+                            className="mb-6"
+                            animationType="slideUp"
+                            delay={300}
+                        >
+                            <Text className="text-white text-lg font-bold mb-6">
+                                Category Limits
+                            </Text>
+
+                            <View className="space-y-4">
+                                {EXPENSE_CATEGORIES.map((category) => (
+                                    <Input
+                                        key={category}
+                                        label={category}
+                                        placeholder="0"
+                                        value={categoryLimits[category]?.toString() || ''}
+                                        onChangeText={(value) => handleCategoryLimitChange(category, value)}
+                                        leftIcon="wallet-outline"
+                                        keyboardType="numeric"
+                                        variant="glass"
+                                    />
+                                ))}
+                            </View>
+                        </AnimatedCard>
+
                         <AnimatedCard
                             className="bg-transparent"
                             animationType="scale"

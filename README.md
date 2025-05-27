@@ -115,10 +115,6 @@ npm run reset      # Reset cache and restart
 expo install       # Install Expo-compatible packages
 ```
 
-## 📄 License
-
-MIT License - see LICENSE file for details.
-
 ## 🤝 Contributing
 
 1. Fork the repository

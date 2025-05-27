@@ -1,0 +1,227 @@
+===============================================================================
+                    EXPENSE TRACKING MOBILE APPLICATION
+                         SYSTEM DOCUMENTATION
+===============================================================================
+
+Project Name: NE-MOBILE Expense Tracker
+Documentation Date: January 2025
+Author: D Regis
+Version: 1.0.0
+
+===============================================================================
+                              OVERVIEW
+===============================================================================
+
+This document provides a comprehensive overview of the Expense Tracking Mobile 
+Application, including all API endpoints, application pages, and system 
+features. The application is built using React Native with Expo framework 
+and integrates with a RESTful API for data management.
+
+===============================================================================
+                            API ENDPOINTS
+===============================================================================
+
+Base URL: https://67ac71475853dfff53dab929.mockapi.io/api/v1
+
+USER MANAGEMENT ENDPOINTS:
+--------------------------
+1. User Authentication
+   - GET /users?username={email}
+     Purpose: Authenticate user login with email and password validation
+     Parameters: username (email format)
+     Response: User object with credentials
+     
+
+2. User Registration
+   - POST /users
+     Purpose: Create new user account
+     Payload: name, username, email, password, timestamps
+     Response: Created user object
+
+3. User Profile
+   - GET /users/{userId}
+     Purpose: Retrieve user information by ID
+     Parameters: userId (string)
+     Response: User profile data
+
+EXPENSE MANAGEMENT ENDPOINTS:
+-----------------------------
+1. Expense Retrieval
+   - GET /expenses
+     Purpose: Retrieve all expenses in the system
+     Response: Array of expense objects
+
+   - GET /expenses?userId={userId}
+     Purpose: Retrieve expenses filtered by user ID
+     Parameters: userId (string)
+     Response: Array of user-specific expenses
+
+   - GET /expenses/{expenseId}
+     Purpose: Retrieve specific expense details
+     Parameters: expenseId (string)
+     Response: Single expense object
+
+2. Expense Management
+   - POST /expenses
+     Purpose: Create new expense entry
+     Payload: title, amount, category, description, date, userId
+     Response: Created expense object
+
+   - PUT /expenses/{expenseId}
+     Purpose: Update existing expense
+     Parameters: expenseId (string)
+     Payload: Updated expense fields
+     Response: Updated expense object
+
+   - DELETE /expenses/{expenseId}
+     Purpose: Remove expense from system
+     Parameters: expenseId (string)
+     Response: Success confirmation
+
+===============================================================================
+                        APPLICATION PAGES/SCREENS
+===============================================================================
+
+AUTHENTICATION SECTION:
+-----------------------
+1. Login Screen (/login)
+   - User authentication with email and password
+   - Form validation and error handling
+   - Integration with user authentication API
+   - Test credentials display for development
+   - Animated UI with gradient backgrounds
+
+2. Registration Screen (/register)
+   - New user account creation
+   - Email validation and password confirmation
+   - Automatic login after successful registration
+   - Consistent design with login interface
+
+3. Index Screen (/index)
+   - Application entry point
+   - Authentication state management
+   - Automatic routing based on user status
+
+MAIN APPLICATION INTERFACE:
+---------------------------
+1. Dashboard Screen (/(tabs)/dashboard)
+   - Monthly budget overview with visual progress indicators
+   - Recent expenses summary
+   - Quick action buttons for common tasks
+   - Budget alerts and spending notifications
+   - Animated components with smooth transitions
+
+2. Expenses List Screen (/(tabs)/expenses)
+   - Comprehensive expense listing with search functionality
+   - Category-based filtering with horizontal scroll
+   - Real-time expense totals calculation
+   - Direct delete functionality without confirmation dialogs
+   - Edit and detailed view navigation
+   - Pull-to-refresh data synchronization
+
+3. Profile Screen (/(tabs)/profile)
+   - User account information display
+   - Logout functionality
+   - Account management options
+   - Settings access
+
+EXPENSE MANAGEMENT SECTION:
+---------------------------
+1. Expense Form Screen (/expense-form)
+   - Add new expense entries
+   - Edit existing expense records
+   - Category selection with visual icons
+   - Input fields: amount, title, description, date
+   - Comprehensive form validation
+   - Error handling and user feedback
+
+2. Expense Details Screen (/expense-details/[id])
+   - Complete expense information display
+   - Category visualization with icons and colors
+   - Creation and modification timestamps
+   - Direct edit and delete action buttons
+   - Mobile-optimized responsive layout
+
+CONFIGURATION SECTION:
+----------------------
+1. Budget Settings Screen (/budget-settings)
+   - Monthly spending limit configuration
+   - Notification threshold settings
+   - Budget tracking and management
+   - Persistent settings storage
+
+===============================================================================
+                           SYSTEM FEATURES
+===============================================================================
+
+USER INTERFACE DESIGN:
+----------------------
+- Modern dark theme with gradient backgrounds
+- Glass morphism effects for contemporary aesthetics
+- Smooth animations and transitions throughout the application
+- Responsive design optimized for mobile devices
+- Ionicons integration for consistent iconography
+- Toast notifications for user feedback and status updates
+
+NAVIGATION SYSTEM:
+------------------
+- Tab-based navigation for primary application sections
+- Stack navigation for detailed views and forms
+- Authentication-based routing with protected routes
+- Deep linking support for direct expense access
+- Intuitive user flow and navigation patterns
+
+DATA MANAGEMENT:
+----------------
+- Local storage implementation for user session persistence
+- Real-time API integration with MockAPI service
+- Optimistic updates for enhanced user experience
+- Comprehensive error handling with user-friendly messages
+- Loading states and refresh controls for data operations
+- Offline capability considerations
+
+SECURITY FEATURES:
+------------------
+- Email and password authentication
+- Form validation and input sanitization
+- Secure session management
+- Protected route implementation
+- User data privacy considerations
+
+PERFORMANCE OPTIMIZATIONS:
+--------------------------
+- Efficient state management with React Context
+- Optimized rendering with proper component lifecycle
+- Memory management for large expense lists
+- Smooth animations using native drivers
+- Lazy loading and code splitting where applicable
+
+===============================================================================
+                           TECHNICAL STACK
+===============================================================================
+
+Frontend Framework: React Native with Expo
+Navigation: Expo Router
+State Management: React Context API
+Styling: NativeWind (Tailwind CSS for React Native)
+Icons: Expo Vector Icons (Ionicons)
+HTTP Client: Axios
+Storage: AsyncStorage
+Animations: React Native Animated API
+Backend API: MockAPI (RESTful service)
+
+===============================================================================
+                              CONCLUSION
+===============================================================================
+
+This Expense Tracking Mobile Application provides a comprehensive solution for 
+personal financial management with modern UI/UX design, robust authentication 
+system, and complete expense management capabilities. The system is designed 
+with scalability, maintainability, and user experience as primary considerations.
+
+For technical support or additional information, please contact the development 
+team.
+
+===============================================================================
+                            END OF DOCUMENT
+=============================================================================== 

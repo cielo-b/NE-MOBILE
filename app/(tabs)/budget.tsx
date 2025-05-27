@@ -9,6 +9,7 @@ import { Expense, EXPENSE_CATEGORIES } from '../../types';
 import { formatters } from '../../utils/formatters';
 import { Card } from '../../components/ui/Card';
 import { Loading } from '../../components/ui/Loading';
+import { debug } from '../../utils/debug';
 
 interface CategoryBudget {
     category: string;
@@ -41,10 +42,27 @@ export default function BudgetScreen() {
 
     const loadExpenses = async () => {
         try {
+            debug.log('BudgetScreen', 'Loading expenses...');
             setIsLoading(true);
             const data = await expenseAPI.getAllExpenses();
-            setExpenses(data);
+            debug.log('BudgetScreen', 'Raw expenses data received:', data);
+
+            // Normalize and validate each expense
+            const normalizedExpenses = data.map((expense, index) => {
+                const validation = debug.validateExpense(expense);
+                if (!validation.isValid) {
+                    debug.warn('BudgetScreen', `Invalid expense at index ${index}:`, validation.issues);
+                }
+
+                // Normalize the expense data structure
+                const normalized = debug.normalizeExpense(expense);
+                return normalized;
+            }).filter(expense => expense && expense.id); // Filter out invalid expenses
+
+            debug.log('BudgetScreen', 'Normalized expenses:', normalizedExpenses);
+            setExpenses(normalizedExpenses);
         } catch (error) {
+            debug.error('BudgetScreen', 'Error loading expenses:', error);
             Toast.show({
                 type: 'error',
                 text1: 'Error',
@@ -66,7 +84,7 @@ export default function BudgetScreen() {
         const currentYear = new Date().getFullYear();
 
         return expenses.filter(expense => {
-            const expenseDate = new Date(expense.date);
+            const expenseDate = new Date(expense.date || expense.createdAt);
             return expenseDate.getMonth() === currentMonth &&
                 expenseDate.getFullYear() === currentYear;
         });
@@ -78,7 +96,9 @@ export default function BudgetScreen() {
 
         // Calculate spending per category
         currentMonthExpenses.forEach(expense => {
-            categorySpending[expense.category] = (categorySpending[expense.category] || 0) + expense.amount;
+            const category = expense.category || 'Other';
+            const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) || 0 : expense.amount;
+            categorySpending[category] = (categorySpending[category] || 0) + amount;
         });
 
         // Create budget objects for all categories
@@ -101,7 +121,10 @@ export default function BudgetScreen() {
     };
 
     const getTotalSpent = () => {
-        return getCurrentMonthExpenses().reduce((total, expense) => total + expense.amount, 0);
+        return getCurrentMonthExpenses().reduce((total, expense) => {
+            const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) || 0 : expense.amount;
+            return total + amount;
+        }, 0);
     };
 
     const getProgressColor = (percentage: number) => {
@@ -112,6 +135,13 @@ export default function BudgetScreen() {
     };
 
     const getCategoryIcon = (category: string): keyof typeof Ionicons.glyphMap => {
+        console.log('Budget getCategoryIcon called with category:', category);
+
+        if (!category || typeof category !== 'string') {
+            console.warn('Invalid category provided to budget getCategoryIcon:', category);
+            return 'ellipse-outline';
+        }
+
         switch (category.toLowerCase()) {
             case 'food & dining':
                 return 'restaurant-outline';

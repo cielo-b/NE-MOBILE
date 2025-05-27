@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { expenseAPI } from '../../services/api';
 import { Expense } from '../../types';
 import { formatters } from '../../utils/formatters';
+import { debug } from '../../utils/debug';
 import { Card } from '../../components/ui/Card';
 import { Loading } from '../../components/ui/Loading';
 import { ExpenseCard } from '../../components/expenses/ExpenseCard';
@@ -25,10 +26,27 @@ export default function DashboardScreen() {
 
     const loadExpenses = async () => {
         try {
+            debug.log('DashboardScreen', 'Loading expenses...');
             setIsLoading(true);
             const data = await expenseAPI.getAllExpenses();
-            setExpenses(data);
+            debug.log('DashboardScreen', 'Raw expenses data received:', data);
+
+            // Normalize and validate each expense
+            const normalizedExpenses = data.map((expense, index) => {
+                const validation = debug.validateExpense(expense);
+                if (!validation.isValid) {
+                    debug.warn('DashboardScreen', `Invalid expense at index ${index}:`, validation.issues);
+                }
+
+                // Normalize the expense data structure
+                const normalized = debug.normalizeExpense(expense);
+                return normalized;
+            }).filter(expense => expense && expense.id); // Filter out invalid expenses
+
+            debug.log('DashboardScreen', 'Normalized expenses:', normalizedExpenses);
+            setExpenses(normalizedExpenses);
         } catch (error) {
+            debug.error('DashboardScreen', 'Error loading expenses:', error);
             Toast.show({
                 type: 'error',
                 text1: 'Error',
@@ -46,7 +64,10 @@ export default function DashboardScreen() {
     };
 
     const calculateTotalExpenses = () => {
-        return expenses.reduce((total, expense) => total + expense.amount, 0);
+        return expenses.reduce((total, expense) => {
+            const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) || 0 : expense.amount;
+            return total + amount;
+        }, 0);
     };
 
     const getThisMonthExpenses = () => {
@@ -54,7 +75,7 @@ export default function DashboardScreen() {
         const currentYear = new Date().getFullYear();
 
         return expenses.filter(expense => {
-            const expenseDate = new Date(expense.date);
+            const expenseDate = new Date(expense.date || expense.createdAt);
             return expenseDate.getMonth() === currentMonth &&
                 expenseDate.getFullYear() === currentYear;
         });
@@ -62,7 +83,11 @@ export default function DashboardScreen() {
 
     const getRecentExpenses = () => {
         return expenses
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .sort((a, b) => {
+                const dateA = new Date(a.date || a.createdAt).getTime();
+                const dateB = new Date(b.date || b.createdAt).getTime();
+                return dateB - dateA;
+            })
             .slice(0, 5);
     };
 
@@ -70,7 +95,9 @@ export default function DashboardScreen() {
         const categoryTotals: { [key: string]: number } = {};
 
         expenses.forEach(expense => {
-            categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
+            const category = expense.category || 'Other';
+            const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) || 0 : expense.amount;
+            categoryTotals[category] = (categoryTotals[category] || 0) + amount;
         });
 
         return Object.entries(categoryTotals)
@@ -84,7 +111,10 @@ export default function DashboardScreen() {
     }
 
     const thisMonthExpenses = getThisMonthExpenses();
-    const thisMonthTotal = thisMonthExpenses.reduce((total, expense) => total + expense.amount, 0);
+    const thisMonthTotal = thisMonthExpenses.reduce((total, expense) => {
+        const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) || 0 : expense.amount;
+        return total + amount;
+    }, 0);
     const recentExpenses = getRecentExpenses();
     const topCategories = getCategoryBreakdown();
 
@@ -100,7 +130,7 @@ export default function DashboardScreen() {
                     {/* Welcome Header */}
                     <View className="mb-6">
                         <Text className="text-2xl font-bold text-gray-900">
-                            Welcome back, {user?.name || 'User'}!
+                            Welcome back, {user?.name || user?.username || 'User'}!
                         </Text>
                         <Text className="text-gray-600 mt-1">
                             Here's your financial overview

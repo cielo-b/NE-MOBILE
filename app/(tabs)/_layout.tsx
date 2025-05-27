@@ -4,6 +4,7 @@ import { Tabs, router } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { Loading } from '../../components/ui/Loading';
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -14,15 +15,21 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isLoading && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isLoading]);
 
+  // Show loading while checking authentication
+  if (isLoading) {
+    return <Loading text="Loading..." />;
+  }
+
+  // Don't render tabs if not authenticated
   if (!isAuthenticated) {
     return null;
   }

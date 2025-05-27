@@ -8,6 +8,7 @@ import Toast from 'react-native-toast-message';
 import { expenseAPI } from '../../services/api';
 import { Expense } from '../../types';
 import { formatters } from '../../utils/formatters';
+import { debug } from '../../utils/debug';
 import { Input } from '../../components/ui/Input';
 import { Loading } from '../../components/ui/Loading';
 import { ExpenseCard } from '../../components/expenses/ExpenseCard';
@@ -30,10 +31,27 @@ export default function ExpensesScreen() {
 
     const loadExpenses = async () => {
         try {
+            debug.log('ExpensesScreen', 'Loading expenses...');
             setIsLoading(true);
             const data = await expenseAPI.getAllExpenses();
-            setExpenses(data);
+            debug.log('ExpensesScreen', 'Raw expenses data received:', data);
+
+            // Normalize and validate each expense
+            const normalizedExpenses = data.map((expense, index) => {
+                const validation = debug.validateExpense(expense);
+                if (!validation.isValid) {
+                    debug.warn('ExpensesScreen', `Invalid expense at index ${index}:`, validation.issues);
+                }
+
+                // Normalize the expense data structure
+                const normalized = debug.normalizeExpense(expense);
+                return normalized;
+            }).filter(expense => expense && expense.id); // Filter out invalid expenses
+
+            debug.log('ExpensesScreen', 'Normalized expenses:', normalizedExpenses);
+            setExpenses(normalizedExpenses);
         } catch (error) {
+            debug.error('ExpensesScreen', 'Error loading expenses:', error);
             Toast.show({
                 type: 'error',
                 text1: 'Error',
@@ -51,25 +69,50 @@ export default function ExpensesScreen() {
     };
 
     const filterExpenses = () => {
+        debug.log('ExpensesScreen', 'filterExpenses called', { searchQuery, selectedCategory, expensesCount: expenses.length });
+
         let filtered = [...expenses];
 
         // Filter by search query
         if (searchQuery.trim()) {
-            filtered = filtered.filter(expense =>
-                expense.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                expense.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                expense.description?.toLowerCase().includes(searchQuery.toLowerCase())
-            );
+            filtered = filtered.filter(expense => {
+                debug.log('ExpensesScreen', 'Filtering expense:', expense);
+
+                try {
+                    // Safe string checks with null/undefined handling
+                    const titleMatch = expense.title?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+                    const categoryMatch = expense.category?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+                    const descriptionMatch = expense.description?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+
+                    return titleMatch || categoryMatch || descriptionMatch;
+                } catch (error) {
+                    debug.error('ExpensesScreen', 'Error filtering expense:', error);
+                    return false;
+                }
+            });
         }
 
         // Filter by category
         if (selectedCategory) {
-            filtered = filtered.filter(expense => expense.category === selectedCategory);
+            filtered = filtered.filter(expense => {
+                debug.log('ExpensesScreen', 'Category filtering expense:', { expense: expense.id, category: expense.category, selectedCategory });
+                try {
+                    return expense.category === selectedCategory;
+                } catch (error) {
+                    debug.error('ExpensesScreen', 'Error in category filter:', error);
+                    return false;
+                }
+            });
         }
 
         // Sort by date (newest first)
-        filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        try {
+            filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        } catch (error) {
+            debug.error('ExpensesScreen', 'Error sorting expenses:', error);
+        }
 
+        debug.log('ExpensesScreen', 'Filtered expenses result:', filtered.length);
         setFilteredExpenses(filtered);
     };
 
@@ -142,8 +185,8 @@ export default function ExpensesScreen() {
                         >
                             <TouchableOpacity
                                 className={`mr-3 px-4 py-2 rounded-full border ${selectedCategory === ''
-                                        ? 'bg-primary-600 border-primary-600'
-                                        : 'bg-white border-gray-300'
+                                    ? 'bg-primary-600 border-primary-600'
+                                    : 'bg-white border-gray-300'
                                     }`}
                                 onPress={() => setSelectedCategory('')}
                             >
@@ -157,8 +200,8 @@ export default function ExpensesScreen() {
                                 <TouchableOpacity
                                     key={category}
                                     className={`mr-3 px-4 py-2 rounded-full border ${selectedCategory === category
-                                            ? 'bg-primary-600 border-primary-600'
-                                            : 'bg-white border-gray-300'
+                                        ? 'bg-primary-600 border-primary-600'
+                                        : 'bg-white border-gray-300'
                                         }`}
                                     onPress={() => setSelectedCategory(category)}
                                 >

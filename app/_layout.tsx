@@ -15,15 +15,12 @@ export {
   ErrorBoundary,
 } from 'expo-router';
 
-export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: 'login',
-};
-
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  console.log('RootLayout: Component initializing');
+
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     ...FontAwesome.font,
@@ -31,23 +28,30 @@ export default function RootLayout() {
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
-    if (error) throw error;
+    if (error) {
+      console.error('RootLayout: Font loading error:', error);
+      throw error;
+    }
   }, [error]);
 
   useEffect(() => {
     if (loaded) {
+      console.log('RootLayout: Fonts loaded, hiding splash screen');
       SplashScreen.hideAsync();
     }
   }, [loaded]);
 
   if (!loaded) {
+    console.log('RootLayout: Fonts not loaded yet');
     return null;
   }
 
+  console.log('RootLayout: Rendering navigation');
   return <RootLayoutNav />;
 }
 
 function RootLayoutNav() {
+  console.log('RootLayoutNav: Rendering stack navigation');
 
   return (
     <AuthProvider>

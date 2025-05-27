@@ -14,6 +14,13 @@ interface ExpenseCardProps {
 }
 
 const getCategoryIcon = (category: string): keyof typeof Ionicons.glyphMap => {
+    console.log('getCategoryIcon called with category:', category);
+
+    if (!category || typeof category !== 'string') {
+        console.warn('Invalid category provided to getCategoryIcon:', category);
+        return 'ellipse-outline';
+    }
+
     switch (category.toLowerCase()) {
         case 'food & dining':
             return 'restaurant-outline';
@@ -37,6 +44,13 @@ const getCategoryIcon = (category: string): keyof typeof Ionicons.glyphMap => {
 };
 
 const getCategoryColor = (category: string): string => {
+    console.log('getCategoryColor called with category:', category);
+
+    if (!category || typeof category !== 'string') {
+        console.warn('Invalid category provided to getCategoryColor:', category);
+        return '#6b7280';
+    }
+
     switch (category.toLowerCase()) {
         case 'food & dining':
             return '#f59e0b';
@@ -66,8 +80,25 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
     onDelete,
     showActions = false,
 }) => {
-    const categoryIcon = getCategoryIcon(expense.category);
-    const categoryColor = getCategoryColor(expense.category);
+    console.log('ExpenseCard rendering with expense:', expense);
+
+    // Ensure all required fields exist with fallbacks
+    const safeExpense = {
+        id: expense.id || '',
+        title: expense.title || expense.name || 'Untitled Expense',
+        amount: expense.amount || 0,
+        category: expense.category || 'Other',
+        description: expense.description || '',
+        date: expense.date || expense.createdAt || new Date().toISOString(),
+        createdAt: expense.createdAt || new Date().toISOString(),
+        updatedAt: expense.updatedAt || expense.createdAt || new Date().toISOString(),
+    };
+
+    console.log('Safe expense category:', safeExpense.category);
+    console.log('Safe expense date:', safeExpense.date);
+
+    const categoryIcon = getCategoryIcon(safeExpense.category);
+    const categoryColor = getCategoryColor(safeExpense.category);
 
     return (
         <TouchableOpacity onPress={onPress} disabled={!onPress}>
@@ -87,20 +118,20 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
 
                         <View className="flex-1">
                             <Text className="text-gray-900 text-base font-semibold">
-                                {expense.title}
+                                {safeExpense.title}
                             </Text>
                             <Text className="text-gray-500 text-sm">
-                                {expense.category}
+                                {safeExpense.category}
                             </Text>
                             <Text className="text-gray-400 text-xs">
-                                {formatters.relativeDate(expense.date)}
+                                {formatters.relativeDate(safeExpense.date)}
                             </Text>
                         </View>
                     </View>
 
                     <View className="items-end">
                         <Text className="text-gray-900 text-lg font-bold">
-                            {formatters.currency(expense.amount)}
+                            {formatters.currency(safeExpense.amount)}
                         </Text>
 
                         {showActions && (
@@ -135,9 +166,9 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
                     </View>
                 </View>
 
-                {expense.description && (
+                {safeExpense.description && (
                     <Text className="text-gray-600 text-sm mt-3">
-                        {expense.description}
+                        {safeExpense.description}
                     </Text>
                 )}
             </Card>

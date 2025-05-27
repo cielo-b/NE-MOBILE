@@ -43,11 +43,11 @@ export default function ExpenseFormScreen() {
             setIsLoading(true);
             const expense = await expenseAPI.getExpense(expenseId);
             setFormData({
-                title: expense.title,
-                amount: expense.amount.toString(),
-                category: expense.category,
+                title: expense.name || expense.title || '',
+                amount: expense.amount?.toString() || '0',
+                category: expense.category || '',
                 description: expense.description || '',
-                date: expense.date.split('T')[0],
+                date: expense.date?.split('T')[0] || new Date().toISOString().split('T')[0],
             });
         } catch (error) {
             Toast.show({

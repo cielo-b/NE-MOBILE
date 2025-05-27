@@ -1,22 +1,23 @@
 export interface User {
   id: string;
   username: string;
-  email: string;
-  name: string;
+  email?: string;
+  name?: string;
   avatar?: string;
   createdAt: string;
 }
 
 export interface Expense {
   id: string;
-  title: string;
-  amount: number;
-  category: string;
+  title?: string;
+  name?: string;
+  amount: number | string;
+  category?: string;
   description?: string;
-  date: string;
-  userId: string;
+  date?: string;
+  userId?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface Budget {

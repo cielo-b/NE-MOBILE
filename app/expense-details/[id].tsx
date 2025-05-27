@@ -13,6 +13,13 @@ import { Button } from '../../components/ui/Button';
 import { Loading } from '../../components/ui/Loading';
 
 const getCategoryIcon = (category: string): keyof typeof Ionicons.glyphMap => {
+    console.log('ExpenseDetails getCategoryIcon called with category:', category);
+
+    if (!category || typeof category !== 'string') {
+        console.warn('Invalid category provided to expense details getCategoryIcon:', category);
+        return 'ellipse-outline';
+    }
+
     switch (category.toLowerCase()) {
         case 'food & dining':
             return 'restaurant-outline';
@@ -36,6 +43,13 @@ const getCategoryIcon = (category: string): keyof typeof Ionicons.glyphMap => {
 };
 
 const getCategoryColor = (category: string): string => {
+    console.log('ExpenseDetails getCategoryColor called with category:', category);
+
+    if (!category || typeof category !== 'string') {
+        console.warn('Invalid category provided to expense details getCategoryColor:', category);
+        return '#6b7280';
+    }
+
     switch (category.toLowerCase()) {
         case 'food & dining':
             return '#f59e0b';

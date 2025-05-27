@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Expense } from '../../types';
 import { formatters } from '../../utils/formatters';
 import { Card } from '../ui/Card';
+import { useAuth } from '@/contexts/AuthContext';
+import { router } from 'expo-router';
 
 interface ExpenseCardProps {
     expense: Expense;
@@ -14,7 +16,7 @@ interface ExpenseCardProps {
 }
 
 const getCategoryIcon = (category: string): keyof typeof Ionicons.glyphMap => {
-    console.log('getCategoryIcon called with category:', category);
+
 
     if (!category || typeof category !== 'string') {
         console.warn('Invalid category provided to getCategoryIcon:', category);
@@ -44,7 +46,7 @@ const getCategoryIcon = (category: string): keyof typeof Ionicons.glyphMap => {
 };
 
 const getCategoryColor = (category: string): string => {
-    console.log('getCategoryColor called with category:', category);
+
 
     if (!category || typeof category !== 'string') {
         console.warn('Invalid category provided to getCategoryColor:', category);
@@ -80,7 +82,10 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
     onDelete,
     showActions = false,
 }) => {
-    console.log('ExpenseCard rendering with expense:', expense);
+
+
+
+    const { isAuthenticated } = useAuth()
 
     // Ensure all required fields exist with fallbacks
     const safeExpense = {
@@ -94,8 +99,14 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
         updatedAt: expense.updatedAt || expense.createdAt || new Date().toISOString(),
     };
 
-    console.log('Safe expense category:', safeExpense.category);
-    console.log('Safe expense date:', safeExpense.date);
+    useEffect(() => {
+        if (!isAuthenticated) {
+            router.replace('/login');
+        }
+    }, [isAuthenticated]);
+
+
+
 
     const categoryIcon = getCategoryIcon(safeExpense.category);
     const categoryColor = getCategoryColor(safeExpense.category);
@@ -138,8 +149,12 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
                             <View className="flex-row mt-2">
                                 {onEdit && (
                                     <TouchableOpacity
-                                        onPress={onEdit}
-                                        className="mr-3 p-1"
+                                        onPress={() => {
+
+                                            onEdit();
+                                        }}
+                                        className="mr-3 p-2"
+                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                     >
                                         <Ionicons
                                             name="pencil-outline"
@@ -151,8 +166,20 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
 
                                 {onDelete && (
                                     <TouchableOpacity
-                                        onPress={onDelete}
-                                        className="p-1"
+                                        onPress={() => {
+
+
+
+                                            try {
+                                                onDelete();
+
+                                            } catch (error) {
+                                                console.error('🗑️ Error calling onDelete:', error);
+                                            }
+                                        }}
+                                        className="p-2"
+                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                        style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)' }}
                                     >
                                         <Ionicons
                                             name="trash-outline"

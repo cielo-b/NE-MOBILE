@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, TextInput, Text, TouchableOpacity, TextInputProps } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, TextInput, Text, TouchableOpacity, TextInputProps, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface InputProps extends TextInputProps {
@@ -8,8 +8,9 @@ interface InputProps extends TextInputProps {
     leftIcon?: keyof typeof Ionicons.glyphMap;
     rightIcon?: keyof typeof Ionicons.glyphMap;
     onRightIconPress?: () => void;
-    variant?: 'default' | 'filled';
+    variant?: 'default' | 'filled' | 'glass';
     required?: boolean;
+    helperText?: string;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -20,74 +21,254 @@ export const Input: React.FC<InputProps> = ({
     onRightIconPress,
     variant = 'default',
     required = false,
+    helperText,
     style,
     ...props
 }) => {
     const [isFocused, setIsFocused] = useState(false);
+    const [hasValue, setHasValue] = useState(false);
+
+    // Animation values
+    const focusAnim = useRef(new Animated.Value(0)).current;
+    const shakeAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        // Animate focus state
+        Animated.timing(focusAnim, {
+            toValue: isFocused ? 1 : 0,
+            duration: 200,
+            useNativeDriver: false,
+        }).start();
+
+        // Scale animation on focus
+        Animated.spring(scaleAnim, {
+            toValue: isFocused ? 1.02 : 1,
+            tension: 300,
+            friction: 10,
+            useNativeDriver: true,
+        }).start();
+    }, [isFocused]);
+
+    useEffect(() => {
+        // Shake animation on error
+        if (error) {
+            Animated.sequence([
+                Animated.timing(shakeAnim, {
+                    toValue: 10,
+                    duration: 100,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(shakeAnim, {
+                    toValue: -10,
+                    duration: 100,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(shakeAnim, {
+                    toValue: 10,
+                    duration: 100,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(shakeAnim, {
+                    toValue: 0,
+                    duration: 100,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+        }
+    }, [error]);
 
     const getContainerStyles = () => {
-        const baseStyles = 'border rounded-lg flex-row items-center';
-        const variantStyles = variant === 'filled' ? 'bg-gray-50' : 'bg-white';
+        const baseStyles = 'border-2 rounded-2xl flex-row items-center transition-all duration-200';
 
-        if (error) {
-            return `${baseStyles} ${variantStyles} border-danger-500`;
-        } else if (isFocused) {
-            return `${baseStyles} ${variantStyles} border-primary-500`;
-        } else {
-            return `${baseStyles} ${variantStyles} border-gray-300`;
+        switch (variant) {
+            case 'filled':
+                return `${baseStyles} bg-gray-50`;
+            case 'glass':
+                return `${baseStyles} bg-white/10 backdrop-blur-lg border-white/20`;
+            default:
+                return `${baseStyles} bg-white shadow-sm`;
         }
     };
 
+    const getBorderColor = () => {
+        if (error) return '#ef4444';
+        if (isFocused) return '#3b82f6';
+        return variant === 'glass' ? 'rgba(255, 255, 255, 0.2)' : '#e5e7eb';
+    };
+
+    const getTextColor = () => {
+        return variant === 'glass' ? '#ffffff' : '#111827';
+    };
+
+    const getLabelColor = () => {
+        if (error) return '#ef4444';
+        if (isFocused) return '#3b82f6';
+        return variant === 'glass' ? '#d1d5db' : '#374151';
+    };
+
+    const getIconColor = () => {
+        if (error) return '#ef4444';
+        if (isFocused) return '#3b82f6';
+        return variant === 'glass' ? '#9ca3af' : '#6b7280';
+    };
+
+    const handleFocus = (e: any) => {
+        setIsFocused(true);
+        props.onFocus?.(e);
+    };
+
+    const handleBlur = (e: any) => {
+        setIsFocused(false);
+        props.onBlur?.(e);
+    };
+
+    const handleChangeText = (text: string) => {
+        setHasValue(text.length > 0);
+        props.onChangeText?.(text);
+    };
+
     return (
-        <View className="mb-4">
+        <View className="mb-6">
             {label && (
-                <Text className="text-gray-700 text-sm font-medium mb-2">
-                    {label}
-                    {required && <Text className="text-danger-500"> *</Text>}
-                </Text>
+                <Animated.View
+                    style={{
+                        transform: [
+                            {
+                                translateY: focusAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [0, -2],
+                                }),
+                            },
+                        ],
+                    }}
+                >
+                    <Text
+                        className="text-sm font-semibold mb-3 transition-colors duration-200"
+                        style={{ color: getLabelColor() }}
+                    >
+                        {label}
+                        {required && <Text className="text-red-500 ml-1">*</Text>}
+                    </Text>
+                </Animated.View>
             )}
 
-            <View className={getContainerStyles()}>
-                {leftIcon && (
-                    <View className="pl-3">
-                        <Ionicons
-                            name={leftIcon}
-                            size={20}
-                            color={error ? '#ef4444' : isFocused ? '#0284c7' : '#6b7280'}
-                        />
-                    </View>
-                )}
+            <Animated.View
+                style={{
+                    transform: [
+                        { translateX: shakeAnim },
+                        { scale: scaleAnim },
+                    ],
+                }}
+            >
+                <View
+                    className={getContainerStyles()}
+                    style={{
+                        borderColor: getBorderColor(),
+                        shadowColor: isFocused ? '#3b82f6' : '#000',
+                        shadowOffset: {
+                            width: 0,
+                            height: isFocused ? 4 : 2,
+                        },
+                        shadowOpacity: isFocused ? 0.1 : 0.05,
+                        shadowRadius: isFocused ? 8 : 4,
+                        elevation: isFocused ? 8 : 2,
+                    }}
+                >
+                    {leftIcon && (
+                        <View className="pl-4">
+                            <Animated.View
+                                style={{
+                                    transform: [
+                                        {
+                                            scale: focusAnim.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: [1, 1.1],
+                                            }),
+                                        },
+                                    ],
+                                }}
+                            >
+                                <Ionicons
+                                    name={leftIcon}
+                                    size={22}
+                                    color={getIconColor()}
+                                />
+                            </Animated.View>
+                        </View>
+                    )}
 
-                <TextInput
-                    className={`
-            flex-1 py-3 text-gray-900 text-base
-            ${leftIcon ? 'pl-2' : 'pl-3'}
-            ${rightIcon ? 'pr-2' : 'pr-3'}
-          `}
-                    placeholderTextColor="#9ca3af"
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
-                    style={style}
-                    {...props}
-                />
+                    <TextInput
+                        className={`
+                            flex-1 py-4 text-base font-medium
+                            ${leftIcon ? 'pl-3' : 'pl-4'}
+                            ${rightIcon ? 'pr-3' : 'pr-4'}
+                        `}
+                        style={[
+                            { color: getTextColor() },
+                            style
+                        ]}
+                        placeholderTextColor={variant === 'glass' ? '#9ca3af' : '#9ca3af'}
+                        onFocus={handleFocus}
+                        onBlur={handleBlur}
+                        onChangeText={handleChangeText}
+                        {...props}
+                    />
 
-                {rightIcon && (
-                    <TouchableOpacity
-                        className="pr-3"
-                        onPress={onRightIconPress}
-                        disabled={!onRightIconPress}
-                    >
-                        <Ionicons
-                            name={rightIcon}
-                            size={20}
-                            color={error ? '#ef4444' : isFocused ? '#0284c7' : '#6b7280'}
-                        />
-                    </TouchableOpacity>
-                )}
-            </View>
+                    {rightIcon && (
+                        <TouchableOpacity
+                            className="pr-4"
+                            onPress={onRightIconPress}
+                            disabled={!onRightIconPress}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <Animated.View
+                                style={{
+                                    transform: [
+                                        {
+                                            scale: focusAnim.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: [1, 1.1],
+                                            }),
+                                        },
+                                    ],
+                                }}
+                            >
+                                <Ionicons
+                                    name={rightIcon}
+                                    size={22}
+                                    color={getIconColor()}
+                                />
+                            </Animated.View>
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </Animated.View>
 
+            {/* Error Message */}
             {error && (
-                <Text className="text-danger-500 text-sm mt-1">{error}</Text>
+                <Animated.View
+                    style={{
+                        opacity: focusAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.8, 1],
+                        }),
+                    }}
+                >
+                    <View className="flex-row items-center mt-2">
+                        <Ionicons name="alert-circle" size={16} color="#ef4444" />
+                        <Text className="text-red-500 text-sm ml-2 font-medium">
+                            {error}
+                        </Text>
+                    </View>
+                </Animated.View>
+            )}
+
+            {/* Helper Text */}
+            {helperText && !error && (
+                <Text className="text-gray-500 text-sm mt-2 ml-1">
+                    {helperText}
+                </Text>
             )}
         </View>
     );

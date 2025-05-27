@@ -12,6 +12,11 @@ export const validation = {
     return { isValid: true };
   },
 
+  isValidEmail: (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  },
+
   password: (password: string): { isValid: boolean; message?: string } => {
     if (!password) {
       return { isValid: false, message: 'Password is required' };

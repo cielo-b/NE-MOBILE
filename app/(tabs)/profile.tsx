@@ -1,289 +1,193 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Animated, StatusBar } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Toast from 'react-native-toast-message';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { useAuth } from '../../contexts/AuthContext';
-import { expenseAPI } from '../../services/api';
-import { Expense } from '../../types';
-import { formatters } from '../../utils/formatters';
 import { Card } from '../../components/ui/Card';
+import { AnimatedCard } from '../../components/ui/AnimatedCard';
 import { Button } from '../../components/ui/Button';
-import { Loading } from '../../components/ui/Loading';
 
 export default function ProfileScreen() {
     const { user, logout } = useAuth();
-    const [expenses, setExpenses] = useState<Expense[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+    // Animation refs
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(50)).current;
+    const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
     useEffect(() => {
-        loadExpenses();
+        // Start animations when component mounts
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 800,
+                useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+                toValue: 0,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+            Animated.spring(scaleAnim, {
+                toValue: 1,
+                tension: 100,
+                friction: 8,
+                useNativeDriver: true,
+            }),
+        ]).start();
     }, []);
 
-    const loadExpenses = async () => {
-        try {
-            setIsLoading(true);
-            const data = await expenseAPI.getAllExpenses();
-            setExpenses(data);
-        } catch (error) {
-            console.error('Failed to load expenses:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleLogout = () => {
-        Alert.alert(
-            'Logout',
-            'Are you sure you want to logout?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Logout',
-                    style: 'destructive',
-                    onPress: confirmLogout,
-                },
-            ]
-        );
-    };
-
-    const confirmLogout = async () => {
-        setIsLoggingOut(true);
+    const handleLogout = async () => {
         try {
             await logout();
-            Toast.show({
-                type: 'success',
-                text1: 'Logged out',
-                text2: 'You have been logged out successfully',
-            });
             router.replace('/login');
         } catch (error) {
-            Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: 'Failed to logout',
-            });
-        } finally {
-            setIsLoggingOut(false);
+            console.error('Logout error:', error);
         }
     };
 
-    const getExpenseStats = () => {
-        const totalExpenses = expenses.length;
-        const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-
-        // This month expenses
-        const currentMonth = new Date().getMonth();
-        const currentYear = new Date().getFullYear();
-        const thisMonthExpenses = expenses.filter(expense => {
-            const expenseDate = new Date(expense.date);
-            return expenseDate.getMonth() === currentMonth &&
-                expenseDate.getFullYear() === currentYear;
-        });
-
-        const thisMonthAmount = thisMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-
-        // Average per month
-        const monthsWithExpenses = new Set(
-            expenses.map(expense => {
-                const date = new Date(expense.date);
-                return `${date.getFullYear()}-${date.getMonth()}`;
-            })
-        ).size;
-
-        const averagePerMonth = monthsWithExpenses > 0 ? totalAmount / monthsWithExpenses : 0;
-
-        // Most expensive category
-        const categoryTotals: { [key: string]: number } = {};
-        expenses.forEach(expense => {
-            categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
-        });
-
-        const topCategory = Object.entries(categoryTotals)
-            .sort(([, a], [, b]) => b - a)[0];
-
-        return {
-            totalExpenses,
-            totalAmount,
-            thisMonthAmount,
-            averagePerMonth,
-            topCategory: topCategory ? { category: topCategory[0], amount: topCategory[1] } : null,
-        };
-    };
-
-    if (isLoading) {
-        return <Loading text="Loading profile..." />;
-    }
-
-    const stats = getExpenseStats();
-
     return (
-        <SafeAreaView className="flex-1 bg-gray-50">
+        <View className="flex-1 bg-gray-50">
+            <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
+
+            {/* Enhanced Header with Gradient */}
+            <LinearGradient
+                colors={['#0f172a', '#1e293b']}
+                className="px-4 py-6"
+            >
+                <Animated.View
+                    style={{
+                        opacity: fadeAnim,
+                        transform: [{ translateY: slideAnim }],
+                    }}
+                >
+                    <View className="flex-row items-center">
+                        <Text className="text-white text-2xl font-bold">Profile</Text>
+                    </View>
+                </Animated.View>
+            </LinearGradient>
+
             <ScrollView className="flex-1">
-                <View className="p-4">
+                <View className="">
                     {/* User Info Card */}
-                    <Card className="mb-6" variant="elevated">
-                        <View className="items-center">
-                            <View className="w-20 h-20 bg-primary-600 rounded-full items-center justify-center mb-4">
-                                <Text className="text-white text-2xl font-bold">
-                                    {user?.name?.charAt(0).toUpperCase() || user?.username?.charAt(0).toUpperCase() || 'U'}
-                                </Text>
+                    <AnimatedCard
+                        className="mb-6 p-6 bg-gradient-to-br from-slate-700 to-slate-800 shadow-xl shadow-slate-500/25"
+                        animationType="slideUp"
+                        delay={200}
+                    >
+                        <View className="items-center mb-6">
+                            <View className="w-24 h-24 bg-white/20 backdrop-blur-lg rounded-full items-center justify-center mb-4 border-2 border-white/30">
+                                <Ionicons name="person" size={48} color="white" />
                             </View>
-
-                            <Text className="text-xl font-bold text-gray-900 mb-1">
-                                {user?.name || 'User'}
+                            <Text className="text-white text-2xl font-bold mb-2">
+                                {user?.name || user?.username || 'User'}
                             </Text>
-
-                            <Text className="text-gray-600 mb-4">
-                                {user?.email || user?.username}
-                            </Text>
-
-                            <View className="bg-primary-50 px-3 py-1 rounded-full">
-                                <Text className="text-primary-700 text-sm font-medium">
-                                    Member since {formatters.date(user?.createdAt || new Date().toISOString())}
-                                </Text>
-                            </View>
-                        </View>
-                    </Card>
-
-                    {/* Statistics Card */}
-                    <Card className="mb-6" variant="elevated">
-                        <Text className="text-lg font-semibold text-gray-900 mb-4">
-                            Your Statistics
-                        </Text>
-
-                        <View className="space-y-4">
-                            <View className="flex-row items-center justify-between">
-                                <View className="flex-row items-center">
-                                    <Ionicons name="receipt-outline" size={20} color="#6b7280" />
-                                    <Text className="text-gray-700 ml-3">Total Expenses</Text>
-                                </View>
-                                <Text className="text-gray-900 font-semibold">
-                                    {stats.totalExpenses}
-                                </Text>
-                            </View>
-
-                            <View className="flex-row items-center justify-between">
-                                <View className="flex-row items-center">
-                                    <Ionicons name="cash-outline" size={20} color="#6b7280" />
-                                    <Text className="text-gray-700 ml-3">Total Spent</Text>
-                                </View>
-                                <Text className="text-gray-900 font-semibold">
-                                    {formatters.currency(stats.totalAmount)}
-                                </Text>
-                            </View>
-
-                            <View className="flex-row items-center justify-between">
-                                <View className="flex-row items-center">
-                                    <Ionicons name="calendar-outline" size={20} color="#6b7280" />
-                                    <Text className="text-gray-700 ml-3">This Month</Text>
-                                </View>
-                                <Text className="text-gray-900 font-semibold">
-                                    {formatters.currency(stats.thisMonthAmount)}
-                                </Text>
-                            </View>
-
-                            <View className="flex-row items-center justify-between">
-                                <View className="flex-row items-center">
-                                    <Ionicons name="trending-up-outline" size={20} color="#6b7280" />
-                                    <Text className="text-gray-700 ml-3">Monthly Average</Text>
-                                </View>
-                                <Text className="text-gray-900 font-semibold">
-                                    {formatters.currency(stats.averagePerMonth)}
-                                </Text>
-                            </View>
-
-                            {stats.topCategory && (
-                                <View className="flex-row items-center justify-between">
-                                    <View className="flex-row items-center">
-                                        <Ionicons name="star-outline" size={20} color="#6b7280" />
-                                        <Text className="text-gray-700 ml-3">Top Category</Text>
-                                    </View>
-                                    <View className="items-end">
-                                        <Text className="text-gray-900 font-semibold">
-                                            {stats.topCategory.category}
-                                        </Text>
-                                        <Text className="text-gray-600 text-sm">
-                                            {formatters.currency(stats.topCategory.amount)}
-                                        </Text>
-                                    </View>
-                                </View>
+                            {user?.email && (
+                                <Text className="text-white/80 text-lg">{user.email}</Text>
                             )}
                         </View>
-                    </Card>
 
-                    {/* Settings Card */}
-                    <Card className="mb-6" variant="elevated">
-                        <Text className="text-lg font-semibold text-gray-900 mb-4">
-                            Settings
+                        <View className="space-y-4">
+                            <View className="flex-row items-center bg-white/10 backdrop-blur-lg rounded-xl p-4">
+                                <View className="w-12 h-12 bg-white/20 rounded-full items-center justify-center mr-4">
+                                    <Ionicons name="mail-outline" size={24} color="white"/>
+                                </View>
+                                <View className="flex-1">
+                                    <Text className="text-white/80 text-sm font-medium">Email</Text>
+                                    <Text className="text-white font-bold text-lg">
+                                        {user?.email || 'Not set'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View className="flex-row items-center bg-white/10 backdrop-blur-lg rounded-xl p-4">
+                                <View className="w-12 h-12 bg-white/20 rounded-full items-center justify-center mr-4">
+                                    <Ionicons name="calendar-outline" size={24} color="white" />
+                                </View>
+                                <View className="flex-1">
+                                    <Text className="text-white/80 text-sm font-medium">Member Since</Text>
+                                    <Text className="text-white font-bold text-lg">
+                                        {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+                    </AnimatedCard>
+
+                    {/* Quick Actions */}
+                    <AnimatedCard
+                        className="mb-6 p-6 bg-white/95 backdrop-blur-lg shadow-xl"
+                        animationType="slideLeft"
+                        delay={400}
+                    >
+                        <Text className="text-lg font-bold text-gray-900 mb-4">
+                            Quick Actions
                         </Text>
-
-                        <View className="space-y-1">
-                            <TouchableOpacity className="flex-row items-center justify-between py-3">
-                                <View className="flex-row items-center">
-                                    <Ionicons name="notifications-outline" size={20} color="#6b7280" />
-                                    <Text className="text-gray-700 ml-3">Notifications</Text>
+                        <View className="space-y-3">
+                            <TouchableOpacity
+                                className="flex-row items-center p-4 bg-blue-50 rounded-2xl"
+                                onPress={() => router.push('/budget-settings')}
+                            >
+                                <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center mr-4">
+                                    <Ionicons name="settings-outline" size={24} color="#3b82f6" />
+                                </View>
+                                <View className="flex-1">
+                                    <Text className="text-gray-900 font-bold text-lg">Budget Settings</Text>
+                                    <Text className="text-gray-600 text-sm">Manage your spending limits</Text>
                                 </View>
                                 <Ionicons name="chevron-forward" size={20} color="#6b7280" />
                             </TouchableOpacity>
 
-                            <TouchableOpacity className="flex-row items-center justify-between py-3">
-                                <View className="flex-row items-center">
-                                    <Ionicons name="pie-chart-outline" size={20} color="#6b7280" />
-                                    <Text className="text-gray-700 ml-3">Budget Settings</Text>
+                            <TouchableOpacity
+                                className="flex-row items-center p-4 bg-emerald-50 rounded-2xl"
+                                onPress={() => router.push('/(tabs)/expenses')}
+                            >
+                                <View className="w-12 h-12 bg-emerald-100 rounded-full items-center justify-center mr-4">
+                                    <Ionicons name="receipt-outline" size={24} color="#10b981" />
+                                </View>
+                                <View className="flex-1">
+                                    <Text className="text-gray-900 font-bold text-lg">View All Expenses</Text>
+                                    <Text className="text-gray-600 text-sm">See your spending history</Text>
                                 </View>
                                 <Ionicons name="chevron-forward" size={20} color="#6b7280" />
                             </TouchableOpacity>
 
-                            <TouchableOpacity className="flex-row items-center justify-between py-3">
-                                <View className="flex-row items-center">
-                                    <Ionicons name="download-outline" size={20} color="#6b7280" />
-                                    <Text className="text-gray-700 ml-3">Export Data</Text>
+                            <TouchableOpacity
+                                className="flex-row items-center p-4 bg-slate-50 rounded-2xl"
+                                onPress={() => router.push('/expense-form')}
+                            >
+                                <View className="w-12 h-12 bg-slate-100 rounded-full items-center justify-center mr-4">
+                                    <Ionicons name="add-circle-outline" size={24} color="#64748b" />
                                 </View>
-                                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity className="flex-row items-center justify-between py-3">
-                                <View className="flex-row items-center">
-                                    <Ionicons name="help-circle-outline" size={20} color="#6b7280" />
-                                    <Text className="text-gray-700 ml-3">Help & Support</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity className="flex-row items-center justify-between py-3">
-                                <View className="flex-row items-center">
-                                    <Ionicons name="information-circle-outline" size={20} color="#6b7280" />
-                                    <Text className="text-gray-700 ml-3">About</Text>
+                                <View className="flex-1">
+                                    <Text className="text-gray-900 font-bold text-lg">Add New Expense</Text>
+                                    <Text className="text-gray-600 text-sm">Track a new purchase</Text>
                                 </View>
                                 <Ionicons name="chevron-forward" size={20} color="#6b7280" />
                             </TouchableOpacity>
                         </View>
-                    </Card>
-
-                    {/* App Info */}
-                    <Card className="mb-6" variant="outlined">
-                        <View className="items-center">
-                            <Text className="text-gray-600 text-sm mb-1">Finance Tracker</Text>
-                            <Text className="text-gray-500 text-xs">Version 1.0.0</Text>
-                        </View>
-                    </Card>
+                    </AnimatedCard>
 
                     {/* Logout Button */}
-                    <Button
-                        title="Logout"
-                        onPress={handleLogout}
-                        variant="danger"
-                        loading={isLoggingOut}
-                        disabled={isLoggingOut}
-                        fullWidth
-                        size="lg"
-                    />
+                    <AnimatedCard
+                        className="bg-transparent p-6"
+                        animationType="scale"
+                        delay={600}
+                    >
+                        <Button
+                            title="Logout"
+                            onPress={handleLogout}
+                            variant="danger"
+                            leftIcon="log-out-outline"
+                            fullWidth
+                            size="lg"
+                        />
+                    </AnimatedCard>
                 </View>
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 } 

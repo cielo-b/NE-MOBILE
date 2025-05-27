@@ -1,29 +1,66 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
-import { router } from 'expo-router';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Animated, StatusBar } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 
+import { useAuth } from '../../contexts/AuthContext';
 import { expenseAPI } from '../../services/api';
 import { Expense } from '../../types';
 import { formatters } from '../../utils/formatters';
 import { debug } from '../../utils/debug';
 import { Input } from '../../components/ui/Input';
 import { Loading } from '../../components/ui/Loading';
+import { AnimatedCard } from '../../components/ui/AnimatedCard';
 import { ExpenseCard } from '../../components/expenses/ExpenseCard';
 
 export default function ExpensesScreen() {
+    const { user, isAuthenticated } = useAuth();
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState<string>('');
+    const [selectedCategory, setSelectedCategory] = useState<any>('');
+
+    // Animation refs
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(50)).current;
+
+    useEffect(() => {
+        if (!isAuthenticated) {
+            router.replace('/login');
+        }
+    }, [isAuthenticated]);
+
+    useEffect(() => {
+        // Start animations when component mounts
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 800,
+                useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+                toValue: 0,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, []);
 
     useEffect(() => {
         loadExpenses();
     }, []);
+
+    // Refresh data when screen comes into focus
+    useFocusEffect(
+        React.useCallback(() => {
+            loadExpenses();
+        }, [])
+    );
 
     useEffect(() => {
         filterExpenses();
@@ -33,7 +70,8 @@ export default function ExpensesScreen() {
         try {
             debug.log('ExpensesScreen', 'Loading expenses...');
             setIsLoading(true);
-            const data = await expenseAPI.getAllExpenses();
+            let data = await expenseAPI.getAllExpenses();
+            data = data.filter(expense => expense.userId === user?.id);
             debug.log('ExpensesScreen', 'Raw expenses data received:', data);
 
             // Normalize and validate each expense
@@ -107,7 +145,11 @@ export default function ExpensesScreen() {
 
         // Sort by date (newest first)
         try {
-            filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            filtered.sort((a, b) => {
+                const dateA = new Date(a.date || a.createdAt || new Date()).getTime();
+                const dateB = new Date(b.date || b.createdAt || new Date()).getTime();
+                return dateB - dateA;
+            });
         } catch (error) {
             debug.error('ExpensesScreen', 'Error sorting expenses:', error);
         }
@@ -117,34 +159,44 @@ export default function ExpensesScreen() {
     };
 
     const handleDeleteExpense = async (expenseId: string) => {
-        Alert.alert(
-            'Delete Expense',
-            'Are you sure you want to delete this expense?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await expenseAPI.deleteExpense(expenseId);
-                            setExpenses(prev => prev.filter(expense => expense.id !== expenseId));
-                            Toast.show({
-                                type: 'success',
-                                text1: 'Success',
-                                text2: 'Expense deleted successfully',
-                            });
-                        } catch (error) {
-                            Toast.show({
-                                type: 'error',
-                                text1: 'Error',
-                                text2: 'Failed to delete expense',
-                            });
-                        }
-                    },
-                },
-            ]
-        );
+
+
+
+        try {
+            debug.log('ExpensesScreen', 'Deleting expense:', expenseId);
+
+            // Show loading state
+            setIsRefreshing(true);
+
+            // Delete from API
+            await expenseAPI.deleteExpense(expenseId);
+
+            // Remove from local state immediately for better UX
+            setExpenses(prev => prev.filter(expense => expense.id !== expenseId));
+
+            // Reload all expenses to ensure consistency
+            await loadExpenses();
+
+            Toast.show({
+                type: 'success',
+                text1: 'Success',
+                text2: 'Expense deleted successfully',
+            });
+
+            debug.log('ExpensesScreen', 'Expense deleted successfully');
+        } catch (error) {
+            debug.error('ExpensesScreen', 'Error deleting expense:', error);
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: 'Failed to delete expense. Please try again.',
+            });
+
+            // Reload expenses to ensure consistency
+            await loadExpenses();
+        } finally {
+            setIsRefreshing(false);
+        }
     };
 
     const getUniqueCategories = () => {
@@ -153,7 +205,10 @@ export default function ExpensesScreen() {
     };
 
     const getTotalAmount = () => {
-        return filteredExpenses.reduce((total, expense) => total + expense.amount, 0);
+        return filteredExpenses.reduce((total, expense) => {
+            const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) || 0 : expense.amount;
+            return total + amount;
+        }, 0);
     };
 
     if (isLoading) {
@@ -163,10 +218,45 @@ export default function ExpensesScreen() {
     const uniqueCategories = getUniqueCategories();
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50">
+        <View className="flex-1 bg-gray-50">
+            <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
+
+            {/* Enhanced Header with Gradient */}
+            <LinearGradient
+                colors={['#0f172a', '#1e293b']}
+                className="px-4 py-6"
+            >
+                <Animated.View
+                    style={{
+                        opacity: fadeAnim,
+                        transform: [{ translateY: slideAnim }],
+                    }}
+                >
+                    <View className="flex-row justify-between items-center">
+                        <View className="flex-1">
+                            <Text className="text-white text-2xl font-bold">Expenses</Text>
+                            <Text className="text-gray-300 text-sm mt-1">
+                                Track and manage your spending
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => router.push('/expense-form')}
+                            className="bg-blue-500 px-4 py-2 rounded-xl flex-row items-center shadow-lg"
+                        >
+                            <Ionicons name="add" size={18} color="white" />
+                            <Text className="text-white font-semibold ml-2">Add</Text>
+                        </TouchableOpacity>
+                    </View>
+                </Animated.View>
+            </LinearGradient>
+
             <View className="flex-1">
                 {/* Search and Filter Section */}
-                <View className="bg-white p-4 border-b border-gray-200">
+                <AnimatedCard
+                    className="p-6"
+                    animationType="slideUp"
+                    delay={200}
+                >
                     <Input
                         placeholder="Search expenses..."
                         value={searchQuery}
@@ -174,6 +264,7 @@ export default function ExpensesScreen() {
                         leftIcon="search-outline"
                         rightIcon={searchQuery ? "close-outline" : undefined}
                         onRightIconPress={() => setSearchQuery('')}
+                        variant="filled"
                     />
 
                     {/* Category Filter */}
@@ -184,13 +275,13 @@ export default function ExpensesScreen() {
                             className="mt-3"
                         >
                             <TouchableOpacity
-                                className={`mr-3 px-4 py-2 rounded-full border ${selectedCategory === ''
-                                    ? 'bg-primary-600 border-primary-600'
-                                    : 'bg-white border-gray-300'
+                                className={`mr-3 px-4 py-2 rounded-full ${selectedCategory === ''
+                                    ? 'bg-blue-500'
+                                    : 'bg-white border border-gray-300'
                                     }`}
                                 onPress={() => setSelectedCategory('')}
                             >
-                                <Text className={`font-medium ${selectedCategory === '' ? 'text-white' : 'text-gray-700'
+                                <Text className={`font-semibold ${selectedCategory === '' ? 'text-white' : 'text-gray-700'
                                     }`}>
                                     All
                                 </Text>
@@ -199,13 +290,13 @@ export default function ExpensesScreen() {
                             {uniqueCategories.map((category) => (
                                 <TouchableOpacity
                                     key={category}
-                                    className={`mr-3 px-4 py-2 rounded-full border ${selectedCategory === category
-                                        ? 'bg-primary-600 border-primary-600'
-                                        : 'bg-white border-gray-300'
+                                    className={`mr-3 px-4 py-2 rounded-full ${selectedCategory === category
+                                        ? 'bg-blue-500'
+                                        : 'bg-white border border-gray-300'
                                         }`}
                                     onPress={() => setSelectedCategory(category)}
                                 >
-                                    <Text className={`font-medium ${selectedCategory === category ? 'text-white' : 'text-gray-700'
+                                    <Text className={`font-semibold ${selectedCategory === category ? 'text-white' : 'text-gray-700'
                                         }`}>
                                         {category}
                                     </Text>
@@ -215,15 +306,23 @@ export default function ExpensesScreen() {
                     )}
 
                     {/* Summary */}
-                    <View className="flex-row justify-between items-center mt-4 pt-3 border-t border-gray-100">
-                        <Text className="text-gray-600">
-                            {filteredExpenses.length} expense{filteredExpenses.length !== 1 ? 's' : ''}
-                        </Text>
-                        <Text className="text-lg font-bold text-gray-900">
-                            Total: {formatters.currency(getTotalAmount())}
-                        </Text>
+                    <View className="flex-row justify-between items-center mt-6 pt-4">
+                        <View>
+                            <Text className="text-gray-600 text-sm">
+                                {filteredExpenses.length} expense{filteredExpenses.length !== 1 ? 's' : ''}
+                            </Text>
+                            <Text className="text-gray-500 text-xs">
+                                {searchQuery || selectedCategory ? 'Filtered results' : 'All expenses'}
+                            </Text>
+                        </View>
+                        <View className="items-end">
+                            <Text className="text-xl font-bold text-gray-900">
+                                {formatters.currency(getTotalAmount())}
+                            </Text>
+                            <Text className="text-gray-500 text-xs">Total amount</Text>
+                        </View>
                     </View>
-                </View>
+                </AnimatedCard>
 
                 {/* Expenses List */}
                 <ScrollView
@@ -234,42 +333,62 @@ export default function ExpensesScreen() {
                 >
                     <View className="p-4">
                         {filteredExpenses.length > 0 ? (
-                            filteredExpenses.map((expense) => (
-                                <ExpenseCard
+                            filteredExpenses.map((expense, index) => (
+                                <AnimatedCard
                                     key={expense.id}
-                                    expense={expense}
-                                    onPress={() => router.push(`/expense-details/${expense.id}`)}
-                                    onEdit={() => router.push(`/expense-form?id=${expense.id}`)}
-                                    onDelete={() => handleDeleteExpense(expense.id)}
-                                    showActions={true}
-                                />
+                                    className="mb-3"
+                                    animationType="slideUp"
+                                    delay={300 + (index * 50)}
+                                >
+                                    <ExpenseCard
+                                        expense={expense}
+                                        onPress={() => router.push(`/expense-details/${expense.id}`)}
+                                        onEdit={() => router.push(`/expense-form?id=${expense.id}`)}
+                                        onDelete={() => {
+
+                                            handleDeleteExpense(expense.id);
+                                        }}
+                                        showActions={true}
+                                    />
+                                </AnimatedCard>
                             ))
                         ) : (
-                            <View className="items-center py-12">
-                                <Ionicons name="receipt-outline" size={64} color="#9ca3af" />
-                                <Text className="text-gray-500 text-lg mt-4 mb-2">
-                                    {searchQuery || selectedCategory ? 'No matching expenses' : 'No expenses yet'}
-                                </Text>
-                                <Text className="text-gray-400 text-center mb-6">
-                                    {searchQuery || selectedCategory
-                                        ? 'Try adjusting your search or filter criteria'
-                                        : 'Start tracking your expenses by adding your first one'
-                                    }
-                                </Text>
+                            <AnimatedCard
+                                className=" "
+                                animationType="scale"
+                                delay={300}
+                            >
+                                <View className="items-center py-16">
+                                    <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-6">
+                                        <Ionicons name="receipt-outline" size={40} color="#9ca3af" />
+                                    </View>
+                                    <Text className="text-gray-500 text-xl font-semibold mb-3">
+                                        {searchQuery || selectedCategory ? 'No matching expenses' : 'No expenses yet'}
+                                    </Text>
+                                    <Text className="text-gray-400 text-center mb-8 px-8 leading-6">
+                                        {searchQuery || selectedCategory
+                                            ? 'Try adjusting your search or filter criteria to find what you\'re looking for'
+                                            : 'Start tracking your expenses by adding your first one and take control of your finances'
+                                        }
+                                    </Text>
 
-                                {!searchQuery && !selectedCategory && (
-                                    <TouchableOpacity
-                                        className="bg-primary-600 px-6 py-3 rounded-lg"
-                                        onPress={() => router.push('/expense-form')}
-                                    >
-                                        <Text className="text-white font-medium">Add First Expense</Text>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
+                                    {!searchQuery && !selectedCategory && (
+                                        <TouchableOpacity
+                                            className="bg-blue-500 px-8 py-4 rounded-2xl shadow-lg"
+                                            onPress={() => router.push('/expense-form')}
+                                        >
+                                            <View className="flex-row items-center">
+                                                <Ionicons name="add-circle" size={20} color="white" />
+                                                <Text className="text-white font-semibold ml-2">Add First Expense</Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            </AnimatedCard>
                         )}
                     </View>
                 </ScrollView>
             </View>
-        </SafeAreaView>
+        </View>
     );
 } 

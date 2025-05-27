@@ -1,23 +1,33 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, Animated, StatusBar } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
 
 import { useAuth } from '../contexts/AuthContext';
+import { useBudget } from '../contexts/BudgetContext';
 import { expenseAPI } from '../services/api';
 import { ExpenseFormData, EXPENSE_CATEGORIES } from '../types';
 import { validation } from '../utils/validation';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { AnimatedCard } from '../components/ui/AnimatedCard';
 import { Loading } from '../components/ui/Loading';
+import { DatePicker } from '../components/ui/DatePicker';
 
 export default function ExpenseFormScreen() {
-    const { user } = useAuth();
+    const { user, isAuthenticated } = useAuth();
+    const { checkBudgetAlert, refreshBudgetData } = useBudget();
     const { id } = useLocalSearchParams<{ id?: string }>();
     const isEditing = !!id;
+    useEffect(() => {
+        if (!isAuthenticated) {
+            router.replace('/login');
+        }
+    }, [isAuthenticated]);
 
     const [formData, setFormData] = useState<ExpenseFormData>({
         title: '',
@@ -32,6 +42,33 @@ export default function ExpenseFormScreen() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
+    // Animation refs
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(50)).current;
+    const scaleAnim = useRef(new Animated.Value(0.9)).current;
+
+    useEffect(() => {
+        // Start animations when component mounts
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 800,
+                useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+                toValue: 0,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+            Animated.spring(scaleAnim, {
+                toValue: 1,
+                tension: 100,
+                friction: 8,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, []);
+
     useEffect(() => {
         if (isEditing && id) {
             loadExpense(id);
@@ -43,7 +80,7 @@ export default function ExpenseFormScreen() {
             setIsLoading(true);
             const expense = await expenseAPI.getExpense(expenseId);
             setFormData({
-                title: expense.name || expense.title || '',
+                title: expense.title || '',
                 amount: expense.amount?.toString() || '0',
                 category: expense.category || '',
                 description: expense.description || '',
@@ -107,6 +144,14 @@ export default function ExpenseFormScreen() {
             return;
         }
 
+        // Check budget alert for new expenses
+        if (!isEditing) {
+            const expenseAmount = parseFloat(formData.amount);
+            if (!isNaN(expenseAmount)) {
+                checkBudgetAlert(expenseAmount);
+            }
+        }
+
         setIsSubmitting(true);
         try {
             if (isEditing && id) {
@@ -127,7 +172,13 @@ export default function ExpenseFormScreen() {
                     text2: 'Expense added successfully',
                 });
             }
+
+            // Refresh budget data after adding/updating expense
+            await refreshBudgetData();
+
+            // Navigate back to trigger refresh
             router.back();
+
         } catch (error) {
             Toast.show({
                 type: 'error',
@@ -175,140 +226,224 @@ export default function ExpenseFormScreen() {
     }
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50">
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                className="flex-1"
-            >
-                {/* Header */}
-                <View className="bg-white px-4 py-3 border-b border-gray-200 flex-row items-center justify-between">
-                    <TouchableOpacity onPress={handleCancel}>
-                        <Ionicons name="close" size={24} color="#6b7280" />
-                    </TouchableOpacity>
-                    <Text className="text-lg font-semibold text-gray-900">
-                        {isEditing ? 'Edit Expense' : 'Add Expense'}
-                    </Text>
-                    <View style={{ width: 24 }} />
-                </View>
+        <View className="flex-1">
+            <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
 
-                <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
-                    <View className="p-4">
-                        <Card>
-                            <Input
-                                label="Title"
-                                placeholder="Enter expense title"
-                                value={formData.title}
-                                onChangeText={(value) => updateFormData('title', value)}
-                                error={errors.title}
-                                leftIcon="document-text-outline"
-                                required
-                            />
+            {/* Background Gradient */}
+            <LinearGradient
+                colors={['#0f172a', '#1e293b', '#334155']}
+                className="absolute inset-0"
+            />
 
-                            <Input
-                                label="Amount"
-                                placeholder="0.00"
-                                value={formData.amount}
-                                onChangeText={(value) => updateFormData('amount', value)}
-                                error={errors.amount}
-                                leftIcon="cash-outline"
-                                keyboardType="numeric"
-                                required
-                            />
+            {/* Animated Background Shapes */}
+            <Animated.View
+                style={{
+                    position: 'absolute',
+                    top: -100,
+                    right: -100,
+                    width: 200,
+                    height: 200,
+                    borderRadius: 100,
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    transform: [
+                        {
+                            scale: scaleAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [0, 1.5],
+                            }),
+                        },
+                    ],
+                }}
+            />
 
-                            {/* Category Picker */}
-                            <View className="mb-4">
-                                <Text className="text-gray-700 text-sm font-medium mb-2">
-                                    Category <Text className="text-danger-500">*</Text>
-                                </Text>
+            <SafeAreaView className="flex-1">
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    className="flex-1"
+                >
+                    {/* Enhanced Header */}
+                    <Animated.View
+                        style={{
+                            opacity: fadeAnim,
+                            transform: [{ translateY: slideAnim }],
+                        }}
+                    >
+                        <LinearGradient
+                            colors={['#0f172a', '#1e293b']}
+                            className="px-4 py-4"
+                        >
+                            <View className="flex-row items-center justify-between">
                                 <TouchableOpacity
-                                    className={`border rounded-lg p-3 flex-row items-center justify-between ${errors.category ? 'border-danger-500' : 'border-gray-300'
-                                        }`}
-                                    onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+                                    onPress={handleCancel}
+                                    className="p-2 rounded-xl bg-white/10"
                                 >
-                                    <View className="flex-row items-center">
-                                        <Ionicons name="grid-outline" size={20} color="#6b7280" />
-                                        <Text className={`ml-2 text-base ${formData.category ? 'text-gray-900' : 'text-gray-400'
-                                            }`}>
-                                            {formData.category || 'Select category'}
-                                        </Text>
-                                    </View>
-                                    <Ionicons
-                                        name={showCategoryPicker ? "chevron-up" : "chevron-down"}
-                                        size={20}
-                                        color="#6b7280"
-                                    />
+                                    <Ionicons name="close" size={24} color="white" />
                                 </TouchableOpacity>
-                                {errors.category && (
-                                    <Text className="text-danger-500 text-sm mt-1">{errors.category}</Text>
-                                )}
-                            </View>
 
-                            {/* Category Options */}
-                            {showCategoryPicker && (
-                                <View className="mb-4 border border-gray-200 rounded-lg bg-gray-50">
-                                    {EXPENSE_CATEGORIES.map((category) => (
-                                        <TouchableOpacity
-                                            key={category}
-                                            className="p-3 border-b border-gray-200 last:border-b-0"
-                                            onPress={() => {
-                                                updateFormData('category', category);
-                                                setShowCategoryPicker(false);
-                                            }}
-                                        >
-                                            <Text className={`text-base ${formData.category === category ? 'text-primary-600 font-medium' : 'text-gray-700'
-                                                }`}>
-                                                {category}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
+                                <View className="flex-1 items-center">
+                                    <Text className="text-white text-xl font-bold">
+                                        {isEditing ? 'Edit Expense' : 'Add Expense'}
+                                    </Text>
+                                    <Text className="text-gray-300 text-sm">
+                                        {isEditing ? 'Update your expense details' : 'Track your spending'}
+                                    </Text>
                                 </View>
-                            )}
 
-                            <Input
-                                label="Date"
-                                placeholder="YYYY-MM-DD"
-                                value={formData.date}
-                                onChangeText={(value) => updateFormData('date', value)}
-                                error={errors.date}
-                                leftIcon="calendar-outline"
-                                required
-                            />
+                                <View style={{ width: 40 }} />
+                            </View>
+                        </LinearGradient>
+                    </Animated.View>
 
-                            <Input
-                                label="Description"
-                                placeholder="Optional description"
-                                value={formData.description}
-                                onChangeText={(value) => updateFormData('description', value)}
-                                error={errors.description}
-                                leftIcon="text-outline"
-                                multiline
-                                numberOfLines={3}
-                                style={{ height: 80, textAlignVertical: 'top' }}
-                            />
-                        </Card>
+                    <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
+                        <View className="p-6 border-none">
+                            {/* Form Content */}
+                            <AnimatedCard
+                                className=" mb-6"
+                                animationType="slideUp"
+                                delay={200}
+                            >
+                                <View className="space-y-4">
+                                    <Input
+                                        label="Expense Title"
+                                        placeholder="What did you spend on?"
+                                        value={formData.title}
+                                        onChangeText={(value) => updateFormData('title', value)}
+                                        error={errors.title}
+                                        leftIcon="receipt-outline"
+                                        variant="glass"
+                                        required
+                                    />
 
-                        {/* Action Buttons */}
-                        <View className="mt-6 space-y-3">
-                            <Button
-                                title={isEditing ? 'Update Expense' : 'Add Expense'}
-                                onPress={handleSubmit}
-                                loading={isSubmitting}
-                                disabled={isSubmitting}
-                                fullWidth
-                                size="lg"
-                            />
+                                    <Input
+                                        label="Amount"
+                                        placeholder="0.00"
+                                        value={formData.amount}
+                                        onChangeText={(value) => updateFormData('amount', value)}
+                                        error={errors.amount}
+                                        leftIcon="cash-outline"
+                                        keyboardType="numeric"
+                                        variant="glass"
+                                        required
+                                    />
 
-                            <Button
-                                title="Cancel"
-                                onPress={handleCancel}
-                                variant="outline"
-                                fullWidth
-                                size="lg"
-                            />
+                                    {/* Category Picker */}
+                                    <View>
+                                        <Text className="text-white text-sm font-semibold mb-3">
+                                            Category <Text className="text-red-400">*</Text>
+                                        </Text>
+                                        <TouchableOpacity
+                                            onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+                                            className="bg-white/10  border-2 border-white/20 rounded-2xl p-4 flex-row items-center justify-between"
+                                        >
+                                            <View className="flex-row items-center">
+                                                <Ionicons name="grid-outline" size={22} color="#9ca3af" />
+                                                <Text className="text-white ml-3 text-base font-medium">
+                                                    {formData.category || 'Select a category'}
+                                                </Text>
+                                            </View>
+                                            <Ionicons
+                                                name={showCategoryPicker ? "chevron-up" : "chevron-down"}
+                                                size={20}
+                                                color="#9ca3af"
+                                            />
+                                        </TouchableOpacity>
+                                        {errors.category && (
+                                            <View className="flex-row items-center mt-2">
+                                                <Ionicons name="alert-circle" size={16} color="#ef4444" />
+                                                <Text className="text-red-500 text-sm ml-2 font-medium">
+                                                    {errors.category}
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </View>
+
+                                    {/* Category Options */}
+                                    {showCategoryPicker && (
+                                        <Animated.View
+                                            style={{
+                                                opacity: fadeAnim,
+                                            }}
+                                            className="bg-white/5 rounded-2xl p-2"
+                                        >
+                                            {EXPENSE_CATEGORIES.map((category) => (
+                                                <TouchableOpacity
+                                                    key={category}
+                                                    onPress={() => {
+                                                        updateFormData('category', category);
+                                                        setShowCategoryPicker(false);
+                                                    }}
+                                                    className={`p-3 rounded-xl mb-1 ${formData.category === category
+                                                        ? 'bg-blue-500/30'
+                                                        : 'bg-white/5'
+                                                        }`}
+                                                >
+                                                    <Text className={`font-medium ${formData.category === category
+                                                        ? 'text-blue-300'
+                                                        : 'text-white'
+                                                        }`}>
+                                                        {category}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </Animated.View>
+                                    )}
+
+                                    <DatePicker
+                                        label="Date"
+                                        value={formData.date}
+                                        onDateChange={(value) => updateFormData('date', value)}
+                                        error={errors.date}
+                                        variant="glass"
+                                        required
+                                    />
+
+                                    <Input
+                                        label="Description"
+                                        placeholder="Optional notes about this expense"
+                                        value={formData.description}
+                                        onChangeText={(value) => updateFormData('description', value)}
+                                        error={errors.description}
+                                        leftIcon="text-outline"
+                                        multiline
+                                        numberOfLines={3}
+                                        variant="glass"
+                                        style={{ height: 80, textAlignVertical: 'top' }}
+                                    />
+                                </View>
+                            </AnimatedCard>
+
+                            {/* Action Buttons */}
+                            <AnimatedCard
+                                className="bg-transparent"
+                                animationType="scale"
+                                delay={400}
+                            >
+                                <View className="space-y-4">
+                                    <Button
+                                        title={isEditing ? 'Update Expense' : 'Add Expense'}
+                                        onPress={handleSubmit}
+                                        loading={isSubmitting}
+                                        disabled={isSubmitting}
+                                        variant="gradient"
+                                        size="lg"
+                                        fullWidth
+                                        leftIcon={isEditing ? "checkmark-outline" : "add-outline"}
+                                    />
+
+                                    <Button
+                                        title="Cancel"
+                                        onPress={handleCancel}
+                                        variant="glass"
+                                        size="lg"
+                                        fullWidth
+                                        leftIcon="close-outline"
+                                    />
+                                </View>
+                            </AnimatedCard>
                         </View>
-                    </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+                    </ScrollView>
+                </KeyboardAvoidingView>
+            </SafeAreaView>
+        </View>
     );
 } 

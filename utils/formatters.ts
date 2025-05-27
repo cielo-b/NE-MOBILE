@@ -1,6 +1,6 @@
 export const formatters = {
   currency: (amount: number | string, currency: string = 'USD'): string => {
-    console.log('formatters.currency called with:', { amount, currency });
+    
     
     let numericAmount: number;
     
@@ -32,7 +32,7 @@ export const formatters = {
   },
 
   date: (date: string | Date): string => {
-    console.log('formatters.date called with:', date);
+    
     
     if (!date) {
       console.warn('No date provided to date formatter');
@@ -57,7 +57,7 @@ export const formatters = {
   },
 
   dateTime: (date: string | Date): string => {
-    console.log('formatters.dateTime called with:', date);
+    
     
     if (!date) {
       console.warn('No date provided to dateTime formatter');
@@ -84,7 +84,7 @@ export const formatters = {
   },
 
   relativeDate: (date: string | Date): string => {
-    console.log('formatters.relativeDate called with:', date);
+    
     
     if (!date) {
       console.warn('No date provided to relativeDate formatter');
@@ -127,7 +127,7 @@ export const formatters = {
   },
 
   percentage: (value: number, total: number): string => {
-    console.log('formatters.percentage called with:', { value, total });
+    
     
     if (typeof value !== 'number' || typeof total !== 'number' || isNaN(value) || isNaN(total)) {
       console.warn('Invalid numbers provided to percentage formatter:', { value, total });
@@ -140,7 +140,7 @@ export const formatters = {
   },
 
   compactNumber: (num: number): string => {
-    console.log('formatters.compactNumber called with:', num);
+    
     
     if (typeof num !== 'number' || isNaN(num)) {
       console.warn('Invalid number provided to compactNumber formatter:', num);
@@ -159,7 +159,7 @@ export const formatters = {
   },
 
   capitalize: (str: string): string => {
-    console.log('formatters.capitalize called with:', str);
+    
     
     if (!str || typeof str !== 'string') {
       console.warn('Invalid string provided to capitalize formatter:', str);
@@ -170,7 +170,7 @@ export const formatters = {
   },
 
   truncate: (str: string, maxLength: number): string => {
-    console.log('formatters.truncate called with:', { str, maxLength });
+    
     
     if (!str || typeof str !== 'string') {
       console.warn('Invalid string provided to truncate formatter:', str);

@@ -1,10 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types';
 
+interface BudgetSettings {
+  monthlyLimit: number;
+  notificationThreshold: number;
+}
+
 const STORAGE_KEYS = {
   USER: '@finance_tracker_user',
   AUTH_TOKEN: '@finance_tracker_token',
   ONBOARDING_COMPLETED: '@finance_tracker_onboarding',
+  BUDGET_SETTINGS: '@finance_tracker_budget_settings',
 };
 
 export const storage = {
@@ -84,14 +90,53 @@ export const storage = {
     }
   },
 
+  // Budget settings management (per user)
+  setBudgetSettings: async (userId: string, settings: BudgetSettings): Promise<void> => {
+    try {
+      const key = `${STORAGE_KEYS.BUDGET_SETTINGS}_${userId}`;
+      await AsyncStorage.setItem(key, JSON.stringify(settings));
+    } catch (error) {
+      console.error('Error saving budget settings:', error);
+      throw new Error('Failed to save budget settings');
+    }
+  },
+
+  getBudgetSettings: async (userId: string): Promise<BudgetSettings | null> => {
+    try {
+      const key = `${STORAGE_KEYS.BUDGET_SETTINGS}_${userId}`;
+      const settingsData = await AsyncStorage.getItem(key);
+      return settingsData ? JSON.parse(settingsData) : null;
+    } catch (error) {
+      console.error('Error getting budget settings:', error);
+      return null;
+    }
+  },
+
+  // Clear budget settings for a specific user
+  clearUserBudgetSettings: async (userId: string): Promise<void> => {
+    try {
+      const key = `${STORAGE_KEYS.BUDGET_SETTINGS}_${userId}`;
+      await AsyncStorage.removeItem(key);
+    } catch (error) {
+      console.error('Error clearing user budget settings:', error);
+    }
+  },
+
   // Clear all data
   clearAll: async (): Promise<void> => {
     try {
-      await AsyncStorage.multiRemove([
+      // Get all keys to find user-specific budget settings
+      const allKeys = await AsyncStorage.getAllKeys();
+      const budgetKeys = allKeys.filter(key => key.startsWith(STORAGE_KEYS.BUDGET_SETTINGS));
+      
+      const keysToRemove = [
         STORAGE_KEYS.USER,
         STORAGE_KEYS.AUTH_TOKEN,
         STORAGE_KEYS.ONBOARDING_COMPLETED,
-      ]);
+        ...budgetKeys, // Include all user-specific budget settings
+      ];
+      
+      await AsyncStorage.multiRemove(keysToRemove);
     } catch (error) {
       console.error('Error clearing storage:', error);
       throw new Error('Failed to clear storage');

@@ -2,7 +2,7 @@ import { Expense } from '../types';
 
 export const debug = {
   log: (component: string, message: string, data?: any) => {
-    console.log(`[${component}] ${message}`, data ? data : '');
+    
   },
   
   warn: (component: string, message: string, data?: any) => {
@@ -34,7 +34,7 @@ export const debug = {
   },
   
   normalizeExpense: (expense: any): Expense => {
-    console.log('Normalizing expense:', expense);
+    
     
     if (!expense) {
       // Return a default expense object if input is null/undefined
@@ -77,7 +77,7 @@ export const debug = {
       updatedAt: expense.updatedAt || expense.createdAt || new Date().toISOString(),
     };
     
-    console.log('Normalized expense result:', normalized);
+    
     return normalized;
   },
   

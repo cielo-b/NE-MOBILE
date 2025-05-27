@@ -37,15 +37,58 @@ api.interceptors.response.use(
 
 // User API
 export const userAPI = {
-  // Login user by username
-  login: async (username: string): Promise<User | null> => {
+  // Login user by username and password
+  login: async (username: string, password: string): Promise<User | null> => {
     try {
+      console.log('Attempting login for username:', username);
       const response = await api.get(`/users?username=${encodeURIComponent(username)}`);
       const users = response.data;
-      return users.length > 0 ? users[0] : null;
+
+      console.log(users)
+      
+      if (users.length === 0) {
+        console.log('No user found with username:', username);
+        throw new Error('Invalid username or password');
+      }
+      
+      const user = users[0];
+      console.log('User found:', user);
+
+      if(user.username != username){
+        console.log('Username validation failed');
+        throw new Error('Invalid username or password');
+      }
+      
+      // Validate password
+      if (user.password !== password) {
+        console.log('Password validation failed');
+        throw new Error('Invalid username or password');
+      }
+      
+      console.log('Login successful for user:', user.username);
+      return user;
     } catch (error) {
       console.error('Login error:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
       throw new Error('Failed to authenticate user');
+    }
+  },
+
+  // Create new user
+  createUser: async (userData: { name: string; username: string; email: string; password: string }): Promise<User> => {
+    try {
+      const payload = {
+        ...userData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      const response = await api.post('/users', payload);
+      return response.data;
+    } catch (error) {
+      console.error('Create user error:', error);
+      throw new Error('Failed to create user account');
     }
   },
 

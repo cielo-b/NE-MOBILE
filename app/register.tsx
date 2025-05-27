@@ -23,26 +23,30 @@ import { Button } from '../components/ui/Button';
 
 const { width, height } = Dimensions.get('window');
 
-interface LoginFormData {
-    username: string;
+interface RegisterFormData {
+    name: string;
+    email: string;
     password: string;
+    confirmPassword: string;
 }
 
-export default function LoginScreen() {
-    const { login } = useAuth();
-    const [formData, setFormData] = useState<LoginFormData>({
-        username: '',
+export default function RegisterScreen() {
+    const { register } = useAuth();
+    const [formData, setFormData] = useState<RegisterFormData>({
+        name: '',
+        email: '',
         password: '',
+        confirmPassword: '',
     });
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     // Animation refs
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(50)).current;
     const scaleAnim = useRef(new Animated.Value(0.9)).current;
-    const logoRotateAnim = useRef(new Animated.Value(0)).current;
 
     React.useEffect(() => {
         // Start animations when component mounts
@@ -63,73 +67,71 @@ export default function LoginScreen() {
                 friction: 8,
                 useNativeDriver: true,
             }),
-            Animated.loop(
-                Animated.timing(logoRotateAnim, {
-                    toValue: 1,
-                    duration: 10000,
-                    useNativeDriver: true,
-                })
-            ),
         ]).start();
     }, []);
 
     const validateForm = (): boolean => {
         const newErrors: { [key: string]: string } = {};
 
-        // Username validation
-        if (!formData.username.trim()) {
-            newErrors.username = 'Email is required';
-        } else if (!validation.isValidEmail(formData.username.trim())) {
-            newErrors.username = 'Please enter a valid email address';
+        if (!formData.name.trim()) {
+            newErrors.name = 'Name is required';
         }
 
-        // Password validation
+        if (!formData.email.trim()) {
+            newErrors.email = 'Email is required';
+        } else if (!validation.isValidEmail(formData.email)) {
+            newErrors.email = 'Please enter a valid email address';
+        }
+
         if (!formData.password) {
             newErrors.password = 'Password is required';
-        } else if (formData.password.length < 3) {
-            newErrors.password = 'Password must be at least 3 characters';
+        } else if (formData.password.length < 6) {
+            newErrors.password = 'Password must be at least 6 characters';
+        }
+
+        if (!formData.confirmPassword) {
+            newErrors.confirmPassword = 'Please confirm your password';
+        } else if (formData.password !== formData.confirmPassword) {
+            newErrors.confirmPassword = 'Passwords do not match';
         }
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleLogin = async () => {
+    const handleRegister = async () => {
         if (!validateForm()) {
             return;
         }
 
         setIsLoading(true);
         try {
-            const success = await login(formData.username.trim(), formData.password);
+            await register({
+                name: formData.name.trim(),
+                username: formData.email.trim(),
+                email: formData.email.trim(),
+                password: formData.password,
+            });
 
-            if (success) {
-                Toast.show({
-                    type: 'success',
-                    text1: 'Welcome back!',
-                    text2: 'Successfully logged in',
-                });
+            Toast.show({
+                type: 'success',
+                text1: 'Success',
+                text2: 'Account created successfully!',
+            });
 
-                router.replace('/(tabs)/dashboard');
-            } else {
-                Toast.show({
-                    type: 'error',
-                    text1: 'Login Failed',
-                    text2: 'Invalid username or password',
-                });
-            }
+            router.replace('/(tabs)/dashboard');
         } catch (error: any) {
             Toast.show({
                 type: 'error',
-                text1: 'Login Failed',
-                text2: error.message || 'Invalid credentials',
+                text1: 'Registration Failed',
+                text2: error.message || 'Failed to create account',
             });
         } finally {
             setIsLoading(false);
         }
     };
 
-    const updateFormData = (field: keyof LoginFormData, value: string) => {
+    const updateFormData = (field: keyof RegisterFormData, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         // Clear error when user starts typing
         if (errors[field]) {
@@ -195,11 +197,11 @@ export default function LoginScreen() {
                 >
                     <ScrollView
                         className="flex-1"
-                        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+                        contentContainerStyle={{ flexGrow: 1 }}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
                     >
-                        <View className="flex-1 px-6 py-8 justify-center">
+                        <View className="flex-1 px-6 py-8">
                             {/* Header */}
                             <Animated.View
                                 style={{
@@ -210,7 +212,7 @@ export default function LoginScreen() {
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                 }}
-                                className="items-center mb-12"
+                                className="items-center mb-8"
                             >
                                 <Animated.View
                                     className="w-24 h-24 bg-primary-600 rounded-full items-center justify-center mb-8 shadow-lg"
@@ -219,11 +221,11 @@ export default function LoginScreen() {
 
                                 </Animated.View>
 
-                                <Text className="text-white text-4xl font-bold mb-3">
-                                    Welcome Back
+                                <Text className="text-white text-3xl font-bold mb-2">
+                                    Create Account
                                 </Text>
-                                <Text className="text-gray-300 text-center text-lg leading-7 mb-4">
-                                    Sign in to continue managing{'\n'}your expenses
+                                <Text className="text-gray-300 text-center text-base leading-6">
+                                    Join us to start tracking your expenses{'\n'}and managing your budget
                                 </Text>
                             </Animated.View>
 
@@ -236,24 +238,35 @@ export default function LoginScreen() {
                                         { scale: scaleAnim },
                                     ],
                                 }}
-                                className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 mb-8 border border-white/20"
+                                className="bg-white/10 backdrop-blur-lg rounded-3xl p-6 mb-3 border border-white/20"
                             >
                                 <View className="">
                                     <Input
+                                        label="Full Name"
+                                        placeholder="Enter your full name"
+                                        value={formData.name}
+                                        onChangeText={(value) => updateFormData('name', value)}
+                                        error={errors.name}
+                                        leftIcon="person-outline"
+                                        autoCapitalize="words"
+                                        variant="glass"
+                                    />
+
+                                    <Input
                                         label="Email"
-                                        placeholder="Enter your email address"
-                                        value={formData.username}
-                                        onChangeText={(value) => updateFormData('username', value)}
-                                        error={errors.username}
+                                        placeholder="Enter your email"
+                                        value={formData.email}
+                                        onChangeText={(value) => updateFormData('email', value)}
+                                        error={errors.email}
                                         leftIcon="mail-outline"
-                                        autoCapitalize="none"
                                         keyboardType="email-address"
+                                        autoCapitalize="none"
                                         variant="glass"
                                     />
 
                                     <Input
                                         label="Password"
-                                        placeholder="Enter your password"
+                                        placeholder="Create a password"
                                         value={formData.password}
                                         onChangeText={(value) => updateFormData('password', value)}
                                         error={errors.password}
@@ -263,27 +276,40 @@ export default function LoginScreen() {
                                         onRightIconPress={() => setShowPassword(!showPassword)}
                                         variant="glass"
                                     />
+
+                                    <Input
+                                        label="Confirm Password"
+                                        placeholder="Confirm your password"
+                                        value={formData.confirmPassword}
+                                        onChangeText={(value) => updateFormData('confirmPassword', value)}
+                                        error={errors.confirmPassword}
+                                        leftIcon="lock-closed-outline"
+                                        secureTextEntry={!showConfirmPassword}
+                                        rightIcon={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                                        onRightIconPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        variant="glass"
+                                    />
                                     <Button
-                                        title="Sign In"
-                                        onPress={handleLogin}
+                                        title="Create Account"
+                                        onPress={handleRegister}
                                         loading={isLoading}
                                         disabled={isLoading}
                                         variant="gradient"
                                         size="lg"
                                         fullWidth
-                                        leftIcon="log-in-outline"
+                                        leftIcon="person-add-outline"
                                     />
                                     <View className='flex flex-row items-center justify-center'>
 
                                         <Text className="text-gray-300 text-base">
-                                            Don't have an account?{' '}
+                                            Already have an account?{' '}
                                         </Text>
                                         <TouchableOpacity
-                                            onPress={() => router.push('/register')}
+                                            onPress={() => router.push('/login')}
                                             className="ml-1"
                                         >
                                             <Text className="text-primary-400 font-semibold text-base">
-                                                Sign Up
+                                                Sign In
                                             </Text>
                                         </TouchableOpacity>
                                     </View>

@@ -7,7 +7,8 @@ interface AuthContextType {
     user: User | null;
     isLoading: boolean;
     isAuthenticated: boolean;
-    login: (username: string) => Promise<boolean>;
+    login: (username: string, password: string) => Promise<boolean>;
+    register: (userData: { name: string; username: string; email: string; password: string }) => Promise<void>;
     logout: () => Promise<void>;
     refreshUser: () => Promise<void>;
 }
@@ -31,54 +32,54 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const initializeAuth = async () => {
         try {
-            console.log('AuthContext: Initializing authentication...');
+
             setIsLoading(true);
             const storedUser = await storage.getUser();
-            console.log('AuthContext: Stored user found:', storedUser);
+
 
             if (storedUser) {
                 // Verify the stored user is still valid
                 try {
-                    console.log('AuthContext: Verifying stored user...');
+
                     const updatedUser = await userAPI.getUser(storedUser.id);
-                    console.log('AuthContext: User verification successful:', updatedUser);
+
                     setUser(updatedUser);
                 } catch (error) {
                     // If user verification fails, clear stored data
-                    console.log('AuthContext: Stored user verification failed, clearing auth data');
+
                     console.error('AuthContext: Verification error:', error);
                     await storage.clearAll();
                     setUser(null);
                 }
             } else {
-                console.log('AuthContext: No stored user found');
+
             }
         } catch (error) {
             console.error('AuthContext: Error initializing auth:', error);
             setUser(null);
         } finally {
-            console.log('AuthContext: Authentication initialization complete');
+
             setIsLoading(false);
         }
     };
 
-    const login = async (username: string): Promise<boolean> => {
+    const login = async (username: string, password: string): Promise<boolean> => {
         try {
-            console.log('AuthContext: Login attempt for username:', username);
+
             setIsLoading(true);
-            const userData = await userAPI.login(username);
-            console.log('AuthContext: Login API response:', userData);
+            const userData = await userAPI.login(username, password);
+
 
             if (userData) {
-                console.log('AuthContext: Login successful, setting user data');
+
                 setUser(userData);
                 await storage.setUser(userData);
                 await storage.setAuthToken(userData.id); // Using user ID as token for simplicity
-                console.log('AuthContext: User data stored successfully');
+
                 return true;
             }
 
-            console.log('AuthContext: Login failed - no user data returned');
+
             return false;
         } catch (error) {
             console.error('AuthContext: Login error:', error);
@@ -88,13 +89,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
+    const register = async (userData: { name: string; username: string; email: string; password: string }): Promise<void> => {
+        try {
+
+            setIsLoading(true);
+
+            // Create user via API
+            const newUser = await userAPI.createUser(userData);
+
+
+            // Auto-login after successful registration
+            setUser(newUser);
+            await storage.setUser(newUser);
+            await storage.setAuthToken(newUser.id);
+
+        } catch (error) {
+            console.error('AuthContext: Registration error:', error);
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const logout = async (): Promise<void> => {
         try {
-            console.log('AuthContext: Logout initiated');
+
             setIsLoading(true);
             setUser(null);
             await storage.clearAll();
-            console.log('AuthContext: Logout completed successfully');
+
         } catch (error) {
             console.error('AuthContext: Logout error:', error);
         } finally {
@@ -121,6 +144,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isLoading,
         isAuthenticated,
         login,
+        register,
         logout,
         refreshUser,
     };

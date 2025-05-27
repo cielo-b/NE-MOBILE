@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
 
 import { AuthProvider } from '../contexts/AuthContext';
+import { BudgetProvider } from '../contexts/BudgetContext';
 import '../global.css';
 
 export {
@@ -19,7 +20,7 @@ export {
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  console.log('RootLayout: Component initializing');
+
 
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
@@ -36,40 +37,47 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded) {
-      console.log('RootLayout: Fonts loaded, hiding splash screen');
+
       SplashScreen.hideAsync();
     }
   }, [loaded]);
 
   if (!loaded) {
-    console.log('RootLayout: Fonts not loaded yet');
+
     return null;
   }
 
-  console.log('RootLayout: Rendering navigation');
+
   return <RootLayoutNav />;
 }
 
 function RootLayoutNav() {
-  console.log('RootLayoutNav: Rendering stack navigation');
+
 
   return (
     <AuthProvider>
-      <ThemeProvider value={DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="expense-form" options={{
-            presentation: 'modal',
-            title: 'Add Expense'
-          }} />
-          <Stack.Screen name="expense-details/[id]" options={{
-            title: 'Expense Details'
-          }} />
-        </Stack>
-        <Toast />
-      </ThemeProvider>
+      <BudgetProvider>
+        <ThemeProvider value={DefaultTheme}>
+          <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="login" options={{ headerShown: false }} />
+            <Stack.Screen name="register" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="expense-form" options={{
+              presentation: 'modal',
+              headerShown: false
+            }} />
+            <Stack.Screen name="expense-details/[id]" options={{
+              headerShown: false
+            }} />
+            <Stack.Screen name="budget-settings" options={{
+              presentation: 'modal',
+              headerShown: false
+            }} />
+          </Stack>
+          <Toast />
+        </ThemeProvider>
+      </BudgetProvider>
     </AuthProvider>
   );
 }

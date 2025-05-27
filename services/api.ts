@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { User, Expense, ExpenseFormData } from '../types';
+import { User, Expense, ExpenseFormData, BudgetSettings } from '../types';
 
 const BASE_URL = 'https://67ac71475853dfff53dab929.mockapi.io/api/v1';
 
@@ -100,6 +100,31 @@ export const userAPI = {
     } catch (error) {
       console.error('Get user error:', error);
       throw new Error('Failed to fetch user data');
+    }
+  },
+
+  // Update user budget settings
+  updateBudgetSettings: async (userId: string, budgetSettings: BudgetSettings): Promise<User> => {
+    try {
+      const response = await api.put(`/users/${userId}`, {
+        budgetSettings,
+        updatedAt: new Date().toISOString(),
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Update budget settings error:', error);
+      throw new Error('Failed to update budget settings');
+    }
+  },
+
+  // Get user budget settings
+  getBudgetSettings: async (userId: string): Promise<BudgetSettings | null> => {
+    try {
+      const response = await api.get(`/users/${userId}`);
+      return response.data.budgetSettings || null;
+    } catch (error) {
+      console.error('Get budget settings error:', error);
+      throw new Error('Failed to fetch budget settings');
     }
   },
 };

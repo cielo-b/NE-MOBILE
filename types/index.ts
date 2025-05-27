@@ -5,6 +5,7 @@ export interface User {
   name?: string;
   avatar?: string;
   createdAt: string;
+  budgetSettings?: BudgetSettings;
 }
 
 export interface Expense {
@@ -69,4 +70,10 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   'Education',
   'Travel',
   'Other',
-]; 
+];
+
+export interface BudgetSettings {
+  monthlyLimit: number;
+  notificationThreshold: number;
+  categoryLimits?: { [key: string]: number };
+} 

@@ -1,14 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Alert } from 'react-native';
 import { storage } from '../utils/storage';
-import { expenseAPI } from '../services/api';
-import { Expense } from '../types';
+import { expenseAPI, userAPI } from '../services/api';
+import { Expense, BudgetSettings } from '../types';
 import { useAuth } from './AuthContext';
-
-interface BudgetSettings {
-    monthlyLimit: number;
-    notificationThreshold: number; // percentage (e.g., 80 for 80%)
-}
 
 interface BudgetContextType {
     budgetSettings: BudgetSettings;
@@ -23,6 +18,7 @@ interface BudgetContextType {
 const defaultBudgetSettings: BudgetSettings = {
     monthlyLimit: 1000,
     notificationThreshold: 80,
+    categoryLimits: {},
 };
 
 const BudgetContext = createContext<BudgetContextType | undefined>(undefined);
@@ -46,9 +42,18 @@ export const BudgetProvider: React.FC<BudgetProviderProps> = ({ children }) => {
         if (!user?.id) return;
 
         try {
-            const storedSettings = await storage.getBudgetSettings(user.id);
-            if (storedSettings) {
-                setBudgetSettingsState(storedSettings);
+            // First try to get settings from API
+            const apiSettings = await userAPI.getBudgetSettings(user.id);
+            if (apiSettings) {
+                setBudgetSettingsState(apiSettings);
+            } else {
+                // Fall back to local storage if API fails
+                const storedSettings = await storage.getBudgetSettings(user.id);
+                if (storedSettings) {
+                    setBudgetSettingsState(storedSettings);
+                    // Sync local settings to API
+                    await userAPI.updateBudgetSettings(user.id, storedSettings);
+                }
             }
             await refreshBudgetData();
         } catch (error) {
@@ -62,6 +67,9 @@ export const BudgetProvider: React.FC<BudgetProviderProps> = ({ children }) => {
         }
 
         try {
+            // Update API first
+            await userAPI.updateBudgetSettings(user.id, settings);
+            // Then update local state and storage
             setBudgetSettingsState(settings);
             await storage.setBudgetSettings(user.id, settings);
         } catch (error) {
